@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebIDE</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { primary: "#007ACC", secondary: "#1E1E1E" },
+            borderRadius: {
+              none: "0px",
+              sm: "4px",
+              DEFAULT: "8px",
+              md: "12px",
+              lg: "16px",
+              xl: "20px",
+              "2xl": "24px",
+              "3xl": "32px",
+              full: "9999px",
+              button: "8px",
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.6.0/remixicon.min.css"
+    />
+    <style>
+      :where([class^="ri-"])::before { content: "\f3c2"; }
+
+      body {
+          font-family: 'Segoe UI', 'Roboto', sans-serif;
+          background-color: #1E1E1E;
+          color: #D4D4D4;
+          height: 100vh;
+          overflow: hidden;
+      }
+
+      .code-editor {
+          font-family: 'Consolas', 'Monaco', monospace;
+          line-height: 1.5;
+      }
+
+      .line-numbers {
+          user-select: none;
+          text-align: right;
+          color: #858585;
+      }
+
+      .terminal {
+          font-family: 'Consolas', 'Monaco', monospace;
+          background-color: #1E1E1E;
+          color: #D4D4D4;
+          border-top: 1px solid #333;
+      }
+
+      .resize-handle {
+          cursor: ns-resize;
+          height: 4px;
+          background-color: #333;
+      }
+
+      .file-tab {
+          border-right: 1px solid #333;
+      }
+
+      .file-tab.active {
+          background-color: #1E1E1E;
+          border-bottom: 2px solid #007ACC;
+      }
+
+      .sidebar-resize {
+          cursor: ew-resize;
+          width: 4px;
+          background-color: #333;
+      }
+
+      .language-keyword { color: #569CD6; }
+      .language-string { color: #CE9178; }
+      .language-comment { color: #6A9955; }
+      .language-function { color: #DCDCAA; }
+      .language-variable { color: #9CDCFE; }
+
+      .overlay {
+          background-color: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(2px);
+      }
+
+      .gui-window {
+          background-color: #252526;
+          border: 1px solid #333;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      .gui-window-header {
+          background-color: #3C3C3C;
+      }
+
+      input[type="checkbox"] {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border: 1px solid #555;
+          border-radius: 3px;
+          background-color: #252526;
+          position: relative;
+      }
+
+      input[type="checkbox"]:checked::before {
+          content: "✓";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: #007ACC;
+      }
+
+      select {
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23D4D4D4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+      }
+    </style>
+  </head>
+  <body class="flex flex-col">
+    <!-- 상단 헤더 -->
+    <header
+      class="bg-[#252526] h-12 flex items-center px-4 border-b border-[#333]"
+    >
+      <div class="flex items-center">
+        <span class="font-['Pacifico'] text-xl text-white mr-4">logo</span>
+      </div>
+
+      <div class="flex-1 flex justify-center">
+        <div class="relative w-48">
+          <select
+            id="language-select"
+            class="bg-[#3C3C3C] text-white w-full py-1.5 px-3 rounded-button border border-[#555] focus:outline-none focus:border-primary pr-8"
+          >
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="javascript">JavaScript</option>
+            <option value="cpp">C++</option>
+            <option value="csharp">C#</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2">
+        <button
+          id="run-button"
+          class="flex items-center bg-primary hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
+        >
+          <div class="w-5 h-5 flex items-center justify-center mr-1">
+            <i class="ri-play-fill"></i>
+          </div>
+          <span>실행</span>
+        </button>
+        <button
+          id="stop-button"
+          class="flex items-center bg-[#3C3C3C] hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
+        >
+          <div class="w-5 h-5 flex items-center justify-center mr-1">
+            <i class="ri-stop-fill"></i>
+          </div>
+          <span>중지</span>
+        </button>
+        <button
+          id="settings-button"
+          class="w-8 h-8 flex items-center justify-center bg-[#3C3C3C] hover:bg-opacity-80 text-white rounded-button"
+        >
+          <i class="ri-settings-3-line"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- 메인 콘텐츠 영역 -->
+    <div class="flex flex-1 overflow-hidden">
+      <!-- 좌측 사이드바 -->
+      <div
+        id="sidebar"
+        class="w-64 bg-[#252526] border-r border-[#333] flex flex-col"
+      >
+        <div
+          class="flex items-center justify-between p-2 border-b border-[#333]"
+        >
+          <span class="font-semibold">파일 탐색기</span>
+          <div class="flex">
+            <button
+              class="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button"
+            >
+              <i class="ri-file-add-line"></i>
+            </button>
+            <button
+              class="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
+            >
+              <i class="ri-folder-add-line"></i>
+            </button>
+            <button
+              class="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
+            >
+              <i class="ri-refresh-line"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-1">
+          <div class="mb-1">
+            <div
+              class="flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer"
+            >
+              <div class="w-4 h-4 flex items-center justify-center mr-1">
+                <i class="ri-folder-open-line text-[#CCCC29]"></i>
+              </div>
+              <span>프로젝트</span>
+            </div>
+
+            <div class="ml-4">
+              <div
+                class="flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer"
+              >
+                <div class="w-4 h-4 flex items-center justify-center mr-1">
+                  <i class="ri-file-code-line text-[#519ABA]"></i>
+                </div>
+                <span>main.py</span>
+              </div>
+
+              <div
+                class="flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer"
+              >
+                <div class="w-4 h-4 flex items-center justify-center mr-1">
+                  <i class="ri-file-code-line text-[#519ABA]"></i>
+                </div>
+                <span>utils.py</span>
+              </div>
+
+              <div
+                class="flex items-center py-1 px-2 bg-[#37373D] rounded cursor-pointer"
+              >
+                <div class="w-4 h-4 flex items-center justify-center mr-1">
+                  <i class="ri-file-code-line text-[#519ABA]"></i>
+                </div>
+                <span>app.py</span>
+              </div>
+
+              <div
+                class="flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer"
+              >
+                <div class="w-4 h-4 flex items-center justify-center mr-1">
+                  <i class="ri-markdown-line text-[#519ABA]"></i>
+                </div>
+                <span>README.md</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div
+              class="flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer"
+            >
+              <div class="w-4 h-4 flex items-center justify-center mr-1">
+                <i class="ri-folder-line text-[#CCCC29]"></i>
+              </div>
+              <span>라이브러리</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 사이드바 리사이즈 핸들 -->
+      <div id="sidebar-resize" class="sidebar-resize"></div>
+
+      <!-- 메인 코드 에디터 영역 -->
+      <div class="flex-1 flex flex-col">
+        <!-- 파일 탭 영역 -->
+        <div class="bg-[#2D2D2D] flex text-sm">
+          <div class="file-tab active px-3 py-2 flex items-center">
+            <div class="w-4 h-4 flex items-center justify-center mr-1">
+              <i class="ri-file-code-line text-[#519ABA]"></i>
+            </div>
+            <span>app.py</span>
+            <button
+              class="ml-2 w-4 h-4 flex items-center justify-center opacity-50 hover:opacity-100"
+            >
+              <i class="ri-close-line"></i>
+            </button>
+          </div>
+
+          <div class="file-tab px-3 py-2 flex items-center">
+            <div class="w-4 h-4 flex items-center justify-center mr-1">
+              <i class="ri-file-code-line text-[#519ABA]"></i>
+            </div>
+            <span>main.py</span>
+            <button
+              class="ml-2 w-4 h-4 flex items-center justify-center opacity-50 hover:opacity-100"
+            >
+              <i class="ri-close-line"></i>
+            </button>
+          </div>
+
+          <div class="file-tab px-3 py-2 flex items-center">
+            <div class="w-4 h-4 flex items-center justify-center mr-1">
+              <i class="ri-file-code-line text-[#519ABA]"></i>
+            </div>
+            <span>utils.py</span>
+            <button
+              class="ml-2 w-4 h-4 flex items-center justify-center opacity-50 hover:opacity-100"
+            >
+              <i class="ri-close-line"></i>
+            </button>
+          </div>
+
+          <button class="px-3 py-2 flex items-center">
+            <div class="w-4 h-4 flex items-center justify-center">
+              <i class="ri-add-line"></i>
+            </div>
+          </button>
+        </div>
+
+        <!-- 코드 에디터 -->
+        <div class="flex-1 overflow-auto code-editor">
+          <div class="flex">
+            <div class="line-numbers px-2 py-2 select-none bg-[#1E1E1E]">
+              <div>1</div>
+              <div>2</div>
+              <div>3</div>
+              <div>4</div>
+              <div>5</div>
+              <div>6</div>
+              <div>7</div>
+              <div>8</div>
+              <div>9</div>
+              <div>10</div>
+              <div>11</div>
+              <div>12</div>
+              <div>13</div>
+              <div>14</div>
+              <div>15</div>
+              <div>16</div>
+              <div>17</div>
+              <div>18</div>
+              <div>19</div>
+              <div>20</div>
+            </div>
+
+            <div class="px-2 py-2 flex-1 overflow-x-auto">
+              <div><span class="language-keyword">import</span> flask</div>
+              <div>
+                <span class="language-keyword">from</span> flask
+                <span class="language-keyword">import</span> Flask,
+                render_template, request
+              </div>
+              <div></div>
+              <div>
+                <span class="language-comment"># 애플리케이션 초기화</span>
+              </div>
+              <div>
+                app = Flask(<span class="language-string">"__name__"</span>)
+              </div>
+              <div></div>
+              <div>
+                <span class="language-comment"># 기본 라우트 설정</span>
+              </div>
+              <div>@app.route(<span class="language-string">"/"</span>)</div>
+              <div>
+                <span class="language-keyword">def</span>
+                <span class="language-function">index</span>():
+              </div>
+              <div>
+                <span class="language-keyword">return</span>
+                render_template(<span class="language-string">"index.html"</span
+                >)
+              </div>
+              <div></div>
+              <div><span class="language-comment"># API 라우트 설정</span></div>
+              <div>
+                @app.route(<span class="language-string">"/api/data"</span>,
+                methods=[<span class="language-string">"GET"</span>])
+              </div>
+              <div>
+                <span class="language-keyword">def</span>
+                <span class="language-function">get_data</span>():
+              </div>
+              <div>
+                <span class="language-variable">data</span> = {<span
+                  class="language-string"
+                  >"message"</span
+                >:
+                <span class="language-string"
+                  >"안녕하세요, WebIDE에서 실행 중입니다!"</span
+                >}
+              </div>
+              <div><span class="language-keyword">return</span> data</div>
+              <div></div>
+              <div>
+                <span class="language-keyword">if</span>
+                <span class="language-variable">__name__</span> ==
+                <span class="language-string">"__main__"</span>:
+              </div>
+              <div>
+                app.run(debug=<span class="language-keyword">True</span>,
+                host=<span class="language-string">"0.0.0.0"</span>, port=5000)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 리사이즈 핸들 -->
+        <div id="resize-handle" class="resize-handle"></div>
+
+        <!-- 터미널 영역 -->
+        <div id="terminal" class="terminal h-48">
+          <div class="flex bg-[#2D2D2D] text-sm border-b border-[#333]">
+            <div
+              class="px-3 py-1 border-r border-[#333] bg-[#1E1E1E] flex items-center"
+            >
+              <span>터미널</span>
+            </div>
+            <div class="px-3 py-1 border-r border-[#333] flex items-center">
+              <span>문제</span>
+            </div>
+            <div class="px-3 py-1 border-r border-[#333] flex items-center">
+              <span>출력</span>
+            </div>
+            <div class="flex-1"></div>
+            <div class="flex items-center px-2">
+              <button
+                class="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button"
+              >
+                <i class="ri-delete-bin-line"></i>
+              </button>
+              <button
+                class="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
+              >
+                <i class="ri-add-line"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-2 font-mono text-sm h-[calc(100%-32px)] overflow-auto">
+            <div class="text-[#858585]">$ python app.py</div>
+            <div class="text-white">* Serving Flask app '__name__'</div>
+            <div class="text-white">* Debug mode: on</div>
+            <div class="text-[#4EC9B0]">* Running on http://0.0.0.0:5000</div>
+            <div class="text-white">* Restarting with stat</div>
+            <div class="text-white">* Debugger is active!</div>
+            <div class="text-white">* Debugger PIN: 123-456-789</div>
+            <div class="text-[#4EC9B0]">
+              127.0.0.1 - - [23/Jun/2025 14:32:15] "GET / HTTP/1.1" 200 -
+            </div>
+            <div class="text-[#4EC9B0]">
+              127.0.0.1 - - [23/Jun/2025 14:32:16] "GET /api/data HTTP/1.1" 200
+              -
+            </div>
+            <div class="text-white flex items-center">
+              <span class="text-green-500 mr-1">$</span>
+              <span class="animate-pulse">|</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GUI 오버레이 (기본적으로 숨겨져 있음) -->
+    <div
+      id="gui-overlay"
+      class="fixed inset-0 overlay hidden flex items-center justify-center z-50"
+    >
+      <div class="gui-window w-[800px] h-[600px] rounded flex flex-col">
+        <div class="gui-window-header flex items-center justify-between p-2">
+          <span>GUI 애플리케이션</span>
+          <button
+            id="close-gui"
+            class="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#505050] rounded-button"
+          >
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+        <div class="flex-1 bg-white p-4 overflow-hidden">
+          <!-- GUI 콘텐츠는 여기에 표시됩니다 -->
+          <div
+            class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-800"
+          >
+            <div class="text-center">
+              <div class="text-2xl font-bold mb-4">Flask 애플리케이션</div>
+              <div class="bg-white p-6 rounded-lg shadow-md">
+                <h1 class="text-xl mb-4">
+                  안녕하세요, WebIDE에서 실행 중입니다!
+                </h1>
+                <div class="mb-4">
+                  <input
+                    type="text"
+                    class="w-full p-2 border border-gray-300 rounded"
+                    placeholder="메시지 입력..."
+                  />
+                </div>
+                <button
+                  class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                >
+                  전송
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script id="sidebar-resize-script">
+      document.addEventListener("DOMContentLoaded", function () {
+        const sidebar = document.getElementById("sidebar");
+        const sidebarResize = document.getElementById("sidebar-resize");
+        let isResizing = false;
+
+        sidebarResize.addEventListener("mousedown", function (e) {
+          isResizing = true;
+          document.body.style.cursor = "ew-resize";
+          document.addEventListener("mousemove", resizeSidebar);
+          document.addEventListener("mouseup", stopResizing);
+          e.preventDefault();
+        });
+
+        function resizeSidebar(e) {
+          if (!isResizing) return;
+          const newWidth = e.clientX;
+          if (newWidth > 150 && newWidth < 400) {
+            sidebar.style.width = newWidth + "px";
+          }
+        }
+
+        function stopResizing() {
+          isResizing = false;
+          document.body.style.cursor = "";
+          document.removeEventListener("mousemove", resizeSidebar);
+          document.removeEventListener("mouseup", stopResizing);
+        }
+      });
+    </script>
+
+    <script id="terminal-resize-script">
+      document.addEventListener("DOMContentLoaded", function () {
+        const terminal = document.getElementById("terminal");
+        const resizeHandle = document.getElementById("resize-handle");
+        let isResizing = false;
+
+        resizeHandle.addEventListener("mousedown", function (e) {
+          isResizing = true;
+          document.body.style.cursor = "ns-resize";
+          document.addEventListener("mousemove", resizeTerminal);
+          document.addEventListener("mouseup", stopResizing);
+          e.preventDefault();
+        });
+
+        function resizeTerminal(e) {
+          if (!isResizing) return;
+          const containerHeight = document.querySelector(
+            ".flex-1.flex.flex-col",
+          ).offsetHeight;
+          const newHeight = containerHeight - e.clientY + terminal.offsetTop;
+          if (newHeight > 100 && newHeight < containerHeight - 200) {
+            terminal.style.height = newHeight + "px";
+          }
+        }
+
+        function stopResizing() {
+          isResizing = false;
+          document.body.style.cursor = "";
+          document.removeEventListener("mousemove", resizeTerminal);
+          document.removeEventListener("mouseup", stopResizing);
+        }
+      });
+    </script>
+
+    <script id="gui-overlay-script">
+      document.addEventListener("DOMContentLoaded", function () {
+        const runButton = document.getElementById("run-button");
+        const closeGui = document.getElementById("close-gui");
+        const guiOverlay = document.getElementById("gui-overlay");
+
+        runButton.addEventListener("click", function () {
+          guiOverlay.classList.remove("hidden");
+        });
+
+        closeGui.addEventListener("click", function () {
+          guiOverlay.classList.add("hidden");
+        });
+
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && !guiOverlay.classList.contains("hidden")) {
+            guiOverlay.classList.add("hidden");
+          }
+        });
+
+        // GUI 창 드래그 기능
+        const guiWindow = document.querySelector(".gui-window");
+        const guiHeader = document.querySelector(".gui-window-header");
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        guiHeader.addEventListener("mousedown", function (e) {
+          isDragging = true;
+          offsetX = e.clientX - guiWindow.getBoundingClientRect().left;
+          offsetY = e.clientY - guiWindow.getBoundingClientRect().top;
+
+          document.addEventListener("mousemove", moveWindow);
+          document.addEventListener("mouseup", stopDragging);
+          e.preventDefault();
+        });
+
+        function moveWindow(e) {
+          if (!isDragging) return;
+          const x = e.clientX - offsetX;
+          const y = e.clientY - offsetY;
+
+          guiWindow.style.left = x + "px";
+          guiWindow.style.top = y + "px";
+          guiWindow.style.transform = "none";
+        }
+
+        function stopDragging() {
+          isDragging = false;
+          document.removeEventListener("mousemove", moveWindow);
+          document.removeEventListener("mouseup", stopDragging);
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 사용자 정의 스타일 */
+body {
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #1E1E1E;
+  color: #D4D4D4;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.code-editor {
+  font-family: 'Consolas', 'Monaco', monospace;
+  line-height: 1.5;
+}
+
+.line-numbers {
+  user-select: none;
+  text-align: right;
+  color: #858585;
+}
+
+.terminal {
+  font-family: 'Consolas', 'Monaco', monospace;
+  background-color: #1E1E1E;
+  color: #D4D4D4;
+  border-top: 1px solid #333;
+}
+
+.resize-handle {
+  cursor: ns-resize;
+  height: 4px;
+  background-color: #333;
+}
+
+.sidebar-resize {
+  cursor: ew-resize;
+  width: 4px;
+  background-color: #333;
+}
+
+.language-keyword { color: #569CD6; }
+.language-string { color: #CE9178; }
+.language-comment { color: #6A9955; }
+.language-function { color: #DCDCAA; }
+.language-variable { color: #9CDCFE; }
+
+.overlay {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.gui-window {
+  background-color: #252526;
+  border: 1px solid #333;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.gui-window-header {
+  background-color: #3C3C3C;
+}
+
+.file-tab {
+  border-right: 1px solid #333;
+}
+
+.file-tab.active {
+  background-color: #1E1E1E;
+  border-bottom: 2px solid #007ACC;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #555;
+  border-radius: 3px;
+  background-color: #252526;
+  position: relative;
+}
+
+input[type="checkbox"]:checked::before {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #007ACC;
+}
