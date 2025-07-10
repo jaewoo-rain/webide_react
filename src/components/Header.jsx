@@ -1,8 +1,21 @@
 import React from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { changeName } from "../store/userSlice";
 
 // 최상단 로고, select바, 실행 등
-export default function Header({ code, onRun, setMode, mode }) {
+export default function Header({ onRun, setMode, mode }) {
   //////////////////////////////////////////////
+
+  // redux 이름 연습
+  let state = useSelector((state)=>{ return state});
+  let dispatch = useDispatch()
+
+  let currentPageId = state.openPage.current;
+  // console.log(currentPageId)
+  // console.log(state.project.fileMap[currentPageId].content)
+  let code = state.project.fileMap[currentPageId].content;
+
+  // 서버쪽에서 파일 뭉치 주면 파일들 분리해서 폴더 만들기 해야함
   const runCode = async () => {
     const res = await fetch("http://localhost:8000/run", {
       method: "POST",
@@ -20,11 +33,14 @@ export default function Header({ code, onRun, setMode, mode }) {
     }
   };
   /////////////////////////////////////////////////////
+
+
+
   return (
     <header className="bg-[#252526] h-12 flex items-center px-4 border-b border-[#333]">
       <div className="flex items-center">
         <span className="font-['Pacifico'] text-xl text-white mr-4">
-          Web-IDE
+          Web-IDE {state.user.name}님 <button onClick={()=>{dispatch(changeName({newName: "jaewoo"}))}}>이름변경</button>
         </span>
       </div>
       {/* 옵션바... 프로젝트 선택하게 해야하나? */}

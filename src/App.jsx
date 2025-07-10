@@ -43,7 +43,7 @@ export default function App() {
     socketRef.current = new WebSocket("ws://localhost:8000/ws");
 
     socketRef.current.onopen = () => {
-      term.write("🟢 연결됨. 명령을 입력하세요.\r\n");
+      term.write("\r\n🟢 연결됨. 명령을 입력하세요.\r\n");
       term.onData((data) => {
         socketRef.current.send(data);
       });
