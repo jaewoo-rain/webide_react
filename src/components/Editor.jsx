@@ -58,9 +58,7 @@ export default function Editor(props) {
       // 사용자가 입력할 때마다 상태에 감지
       editorRef.current.on("change", () => {
         const value = editorRef.current.getValue(); // 에디터의 내용을 가져옴
-        // props.setCode(value);
         dispatch(setCode({fileId: currentPageId, newContent: value})); // 코드 저장
-        // console.log(value);
       });
     }
   }, [currentPageId]); //  []: 오직 최초 마운트시에만 실행되도록 합니다.

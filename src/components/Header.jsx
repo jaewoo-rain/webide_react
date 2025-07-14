@@ -13,14 +13,16 @@ export default function Header({ onRun, setMode, mode }) {
   let currentPageId = state.openPage.current;
   // console.log(currentPageId)
   // console.log(state.project.fileMap[currentPageId].content)
+  console.log(state.project.fileMap)
   let code = state.project.fileMap[currentPageId].content;
+  
 
   // 서버쪽에서 파일 뭉치 주면 파일들 분리해서 폴더 만들기 해야함
   const runCode = async () => {
     const res = await fetch("http://localhost:8000/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code: code, tree: state.project.tree , fileMap: state.project.fileMap, run_code: currentPageId}),
     });
     const data = await res.json();
     setMode(data.mode);

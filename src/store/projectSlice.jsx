@@ -58,6 +58,80 @@ let project = createSlice({
 
     }
 })
+let code1 = {
+    "root":{
+        "1번파일": "print('1번파일')",
+        "2번파일": "print('2번파일')",
+        "1번폴더":{
+            "3번파일":"print('3번파일')",
+            "2번폴더":{
+
+            }
+        }
+    }
+}
+
+let code2 = {
+    "root":{
+        "1": {"name": "1번파일","content":"print('1번파일')"},
+        "2": {"name": "2번파일","content":"print('2번파일')"},
+        "101":{
+            "name":"1번폴더",
+            "3":{"name": "3번파일","content":"print('3번파일')"},
+            "102":{
+                "name":"2번폴더",
+            }
+        }
+    }
+}
+
+let code3 = {
+    "root":{
+        "id":"root",
+        "type":"folder",
+        "children":[
+        {"id":"1","name": "1번파일","content":"print('1번파일')","type":"file"},
+        {"id": "2", "name": "2번파일","content":"print('2번파일')","type":"file"},
+        {"id": "101","type":"folder","name":"1 번폴더",
+            "children":[
+                {"id":"3", "name": "3번파일","content":"print('3번파일')","type":"file"},
+                {"id":"102","name": "2번폴더","type":"folder",
+                    "children":[]
+                }]
+        }]
+    }
+}
+
+let code4 = {
+    "tree":{
+        "root":{
+            "id":"root",
+            "type":"folder",
+            "children":[
+                {"id":"1","type":"file"},
+                {"id":"2","type":"file"},
+                {"id":"101","type":"folder",
+                    "children":[
+                        {"id":"3","type":"file"},
+                        {"id":"102","type":"folder",
+                            "children":[]
+                        }
+                    ]
+                }
+            ]
+        },
+    },
+
+    "fileMap":{
+        "root":{"name":"root","type":"folder"},
+        "1":{"name": "1번파일","content":"print('1번파일')","type":"file"},
+        "2":{"name": "2번파일","content":"print('2번파일')","type":"file"},
+        "3":{"name": "3번파일","content":"print('3번파일')","type":"file"},
+        "101":{"name":"1번폴더","type":"folder"},
+        "102":{"name":"2번폴더","type":"folder"},
+    }
+}
+
 
 // DFS 깊이 우선 탐색
 function findNode(current, targetId){
