@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { newPageOpen } from '../store/openPageSlice';
 import { addFile, addFolder } from '../store/projectSlice';
@@ -13,26 +13,47 @@ export default function Sidebar() {
   // console.log(project)
 
 
-  // 입력 창
+  const inputRef = useRef(null); // input 태그 참조
+
   const [inputValue, setInputValue] = useState("");
   const [type, setType] = useState("");
+
+  // 상태 변화 시 input에 포커스
+  useEffect(() => {
+    if (isShow && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isShow]);
+
+  // 외부 클릭 시 input 감추기
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        inputRef.current &&
+        !inputRef.current.contains(e.target) &&
+        isShow
+      ) {
+        dispatch(changeState());
+        setInputValue("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isShow]);
 
   const handleKeyDown = (type) => (e) => {
     if (e.key === "Enter") {
       const value = inputValue.trim();
-      if(value != ""){
-        if(type == "file"){
-          dispatch(addFile({fileName:inputValue, parentId:"root"}))
-          console.log("파일 추가")
-        }else if(type == "folder"){
-          dispatch(addFolder({folderName:inputValue, parentId:"root"}))
-          console.log("폴더 추가")
+      if (value !== "") {
+        if (type === "file") {
+          dispatch(addFile({ fileName: value, parentId: "root" }));
+        } else if (type === "folder") {
+          dispatch(addFolder({ folderName: value, parentId: "root" }));
         }
       }
-      
-      setInputValue(""); // 입력 후 초기화
-      dispatch(changeState())
-
+      setInputValue("");
+      dispatch(changeState());
     }
   };
 
@@ -137,8 +158,16 @@ export default function Sidebar() {
             }
           {
           isShow 
-            ? <input type="text" className="w-full px-2 py-1 mt-2 bg-[#1E1E1E] text-white border border-[#333] rounded" placeholder="이름 입력 후 Enter" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown(type)}/>
-            :null
+            ? <input
+                ref={inputRef} // ✅ 포커싱 대상
+                type="text"
+                className="w-full px-2 py-1 mt-2 bg-[#1E1E1E] text-white border border-[#333] rounded"
+                placeholder="이름 입력 후 Enter"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown(type)}
+              />
+            : null
           }
 
           </div>
