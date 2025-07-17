@@ -1,13 +1,41 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { newPageOpen } from '../store/openPageSlice';
 import { addFile, addFolder } from '../store/projectSlice';
+import { changeState } from '../store/projectSlice';
 
 export default function Sidebar() {
 
   let project = useSelector((state) => {return state.project});
   let openPage = useSelector((state) => {return state.openPage});
+  let isShow = project.isShow.state;
+  // console.log(isShow);
   // console.log(project)
+
+
+  // 입력 창
+  const [inputValue, setInputValue] = useState("");
+  const [type, setType] = useState("");
+
+  const handleKeyDown = (type) => (e) => {
+    if (e.key === "Enter") {
+      const value = inputValue.trim();
+      if(value != ""){
+        if(type == "file"){
+          dispatch(addFile({fileName:inputValue, parentId:"root"}))
+          console.log("파일 추가")
+        }else if(type == "folder"){
+          dispatch(addFolder({folderName:inputValue, parentId:"root"}))
+          console.log("폴더 추가")
+        }
+      }
+      
+      setInputValue(""); // 입력 후 초기화
+      dispatch(changeState())
+
+    }
+  };
+
 
   let tree = project.tree.children;
   let fileMap = project.fileMap;
@@ -59,11 +87,19 @@ export default function Sidebar() {
         <span className="font-semibold">파일 탐색기</span>
         <div className="flex">
           <button className="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button"
-          onClick={()=>{console.log("파일 추가 버튼 누름"); dispatch(addFile({fileName:"untitleFile", parentId:"root"}))}}>
+          onClick={()=>{
+            console.log("파일 추가 버튼 누름"); 
+            setType("file")
+            dispatch(changeState()); 
+          }}>
             <i className="ri-file-add-line"></i>
           </button>
           <button className="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
-          onClick={()=>{console.log("폴더 추가 버튼 누름"); dispatch(addFolder({folderName:"untitleFolder", parentId:'root'}))}}>
+          onClick={()=>{
+            console.log("폴더 추가 버튼 누름"); 
+            setType("folder")
+            dispatch(changeState()); 
+          }}>
             <i className="ri-folder-add-line"></i>
           </button>
           <button className="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
@@ -99,7 +135,11 @@ export default function Sidebar() {
             // ))
             tree.map((node) => renderNode(node))
             }
-
+          {
+          isShow 
+            ? <input type="text" className="w-full px-2 py-1 mt-2 bg-[#1E1E1E] text-white border border-[#333] rounded" placeholder="이름 입력 후 Enter" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown(type)}/>
+            :null
+          }
 
           </div>
         </div>

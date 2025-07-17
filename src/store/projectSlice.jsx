@@ -20,12 +20,18 @@ let project = createSlice({
             "1": { name: "main.py", content: "", type: "file" },
             "2": {name: "utils.py", content: "", type: "file" },
             "3": {name: "src", type: "folder"}
+        },
+        isShow:{
+            state: false,
         }
     },
     reducers:{
         addFile(state, action){
             // file 추가
             let {fileName, parentId} = action.payload;
+            if(fileName.trim() == ""){
+                return
+            }
             const newId = nanoid();
             state.fileMap[newId] = { name: fileName, content: "", type: "file" };
             
@@ -37,6 +43,9 @@ let project = createSlice({
         },
         addFolder(state, action){
             let {folderName, parentId} = action.payload;
+            if(folderName.trim() == ""){
+                return
+            }
             const newId = nanoid();
             state.fileMap[newId] = {name:folderName, type:"folder"}
 
@@ -50,7 +59,10 @@ let project = createSlice({
             if (state.fileMap[fileId] && state.fileMap[fileId].type === "file") {
                 state.fileMap[fileId].content = newContent;
             }
-
+        },
+        // 파일 추가 시 이름 지정하는 필드 보여주기
+        changeState(state){
+            state.isShow.state = !state.isShow.state;
         }
         // 파일 & 폴더 삭제
         // 파일 & 폴더 이름 바꾸기
@@ -58,79 +70,6 @@ let project = createSlice({
 
     }
 })
-let code1 = {
-    "root":{
-        "1번파일": "print('1번파일')",
-        "2번파일": "print('2번파일')",
-        "1번폴더":{
-            "3번파일":"print('3번파일')",
-            "2번폴더":{
-
-            }
-        }
-    }
-}
-
-let code2 = {
-    "root":{
-        "1": {"name": "1번파일","content":"print('1번파일')"},
-        "2": {"name": "2번파일","content":"print('2번파일')"},
-        "101":{
-            "name":"1번폴더",
-            "3":{"name": "3번파일","content":"print('3번파일')"},
-            "102":{
-                "name":"2번폴더",
-            }
-        }
-    }
-}
-
-let code3 = {
-    "root":{
-        "id":"root",
-        "type":"folder",
-        "children":[
-        {"id":"1","name": "1번파일","content":"print('1번파일')","type":"file"},
-        {"id": "2", "name": "2번파일","content":"print('2번파일')","type":"file"},
-        {"id": "101","type":"folder","name":"1 번폴더",
-            "children":[
-                {"id":"3", "name": "3번파일","content":"print('3번파일')","type":"file"},
-                {"id":"102","name": "2번폴더","type":"folder",
-                    "children":[]
-                }]
-        }]
-    }
-}
-
-let code4 = {
-    "tree":{
-        "root":{
-            "id":"root",
-            "type":"folder",
-            "children":[
-                {"id":"1","type":"file"},
-                {"id":"2","type":"file"},
-                {"id":"101","type":"folder",
-                    "children":[
-                        {"id":"3","type":"file"},
-                        {"id":"102","type":"folder",
-                            "children":[]
-                        }
-                    ]
-                }
-            ]
-        },
-    },
-
-    "fileMap":{
-        "root":{"name":"root","type":"folder"},
-        "1":{"name": "1번파일","content":"print('1번파일')","type":"file"},
-        "2":{"name": "2번파일","content":"print('2번파일')","type":"file"},
-        "3":{"name": "3번파일","content":"print('3번파일')","type":"file"},
-        "101":{"name":"1번폴더","type":"folder"},
-        "102":{"name":"2번폴더","type":"folder"},
-    }
-}
 
 
 // DFS 깊이 우선 탐색
@@ -149,7 +88,7 @@ function findNode(current, targetId){
     return null;
 }
 
-export let {addFile, addFolder, setCode} = project.actions
+export let {addFile, addFolder, setCode, changeState} = project.actions
 export default project
 
 /**
