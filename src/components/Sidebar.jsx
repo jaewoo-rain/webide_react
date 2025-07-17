@@ -1,13 +1,62 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { newPageOpen } from '../store/openPageSlice';
 import { addFile, addFolder } from '../store/projectSlice';
+import { changeState } from '../store/projectSlice';
 
 export default function Sidebar() {
 
   let project = useSelector((state) => {return state.project});
   let openPage = useSelector((state) => {return state.openPage});
+  let isShow = project.isShow.state;
+  // console.log(isShow);
   // console.log(project)
+
+
+  const inputRef = useRef(null); // input 태그 참조
+
+  const [inputValue, setInputValue] = useState("");
+  const [type, setType] = useState("");
+
+  // 상태 변화 시 input에 포커스
+  useEffect(() => {
+    if (isShow && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isShow]);
+
+  // 외부 클릭 시 input 감추기
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        inputRef.current &&
+        !inputRef.current.contains(e.target) &&
+        isShow
+      ) {
+        dispatch(changeState());
+        setInputValue("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isShow]);
+
+  const handleKeyDown = (type) => (e) => {
+    if (e.key === "Enter") {
+      const value = inputValue.trim();
+      if (value !== "") {
+        if (type === "file") {
+          dispatch(addFile({ fileName: value, parentId: "root" }));
+        } else if (type === "folder") {
+          dispatch(addFolder({ folderName: value, parentId: "root" }));
+        }
+      }
+      setInputValue("");
+      dispatch(changeState());
+    }
+  };
+
 
   let tree = project.tree.children;
   let fileMap = project.fileMap;
@@ -59,11 +108,19 @@ export default function Sidebar() {
         <span className="font-semibold">파일 탐색기</span>
         <div className="flex">
           <button className="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button"
-          onClick={()=>{console.log("파일 추가 버튼 누름"); dispatch(addFile({fileName:"untitleFile", parentId:"root"}))}}>
+          onClick={()=>{
+            console.log("파일 추가 버튼 누름"); 
+            setType("file")
+            dispatch(changeState()); 
+          }}>
             <i className="ri-file-add-line"></i>
           </button>
           <button className="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
-          onClick={()=>{console.log("폴더 추가 버튼 누름"); dispatch(addFolder({folderName:"untitleFolder", parentId:'root'}))}}>
+          onClick={()=>{
+            console.log("폴더 추가 버튼 누름"); 
+            setType("folder")
+            dispatch(changeState()); 
+          }}>
             <i className="ri-folder-add-line"></i>
           </button>
           <button className="w-6 h-6 flex items-center justify-center text-[#D4D4D4] hover:bg-[#3C3C3C] rounded-button ml-1"
@@ -99,7 +156,19 @@ export default function Sidebar() {
             // ))
             tree.map((node) => renderNode(node))
             }
-
+          {
+          isShow 
+            ? <input
+                ref={inputRef} // ✅ 포커싱 대상
+                type="text"
+                className="w-full px-2 py-1 mt-2 bg-[#1E1E1E] text-white border border-[#333] rounded"
+                placeholder="이름 입력 후 Enter"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown(type)}
+              />
+            : null
+          }
 
           </div>
         </div>
