@@ -2,6 +2,7 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { clearAuth } from "../store/userSlice"; // clearToken import
 
+
 // 최상단 로고, select바, 실행 등
 export default function Header({ onRun, setMode, mode }) {
   //////////////////////////////////////////////
