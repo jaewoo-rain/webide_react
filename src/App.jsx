@@ -1,24 +1,30 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import FileTabs from "./components/FileTabs";
 import Editor from "./components/Editor";
 import TerminalApp from "./components/Terminal";
 import GuiOverlay from "./components/GuiOverlay";
+import Login from "./components/Login";
+import Main from "./components/Main";
 import { Terminal } from "xterm";
+import { setToken, setUser } from "./store/userSlice";
 
 export default function App() {
+  const { isLoggedIn } = useSelector((state) => state.user);
+  const [ideVisible, setIdeVisible] = useState(false);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [isGuiVisible, setGuiVisible] = useState(false);
-  const [terminalHeight, setTerminalHeight] = useState(200); // 초기 높이
+  const [terminalHeight, setTerminalHeight] = useState(200);
   const [isResizing, setIsResizing] = useState(false);
-  const [code, setCode] = useState(""); // 코드 작성 부분
-  const [mode, setMode] = useState("cli"); // cli, gui모드 변경
+  const [code, setCode] = useState("");
+  const [mode, setMode] = useState("cli");
   const [url, setUrl] = useState("");
 
   const termRef = useRef(null);
   const socketRef = useRef(null);
 
-  // 스크롤 만들기
   const startResizing = () => setIsResizing(true);
   const stopResizing = () => setIsResizing(false);
   const handleMouseMove = (e) => {
@@ -36,8 +42,9 @@ export default function App() {
     };
   }, [isResizing]);
 
-  // 소켓 연결
   useEffect(() => {
+    if (!isLoggedIn || !ideVisible) return;
+
     const term = new Terminal();
     term.open(termRef.current);
     socketRef.current = new WebSocket("ws://localhost:8000/ws");
@@ -58,12 +65,28 @@ export default function App() {
     };
 
     return () => {
-      socketRef.current.close();
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
       term.dispose();
     };
-  }, []);
+  }, [isLoggedIn, ideVisible]);
 
-  ///////////////////////////////////// 근데 왜 이중으로 스크롤이 나옴?
+  const handleLoginSuccess = () => {
+    setLoginModalVisible(false);
+  };
+
+  if (!ideVisible) {
+    return (
+      <>
+        <Main 
+          onStartCoding={() => setIdeVisible(true)} 
+          onLoginClick={() => setLoginModalVisible(true)} 
+        />
+        {loginModalVisible && <Login onSuccess={handleLoginSuccess} onClose={() => setLoginModalVisible(false)} />}
+      </>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen">
@@ -82,9 +105,7 @@ export default function App() {
         <div className="w-1 bg-[#333] sidebar-resize" />
         <div className="flex-1 flex flex-col">
           <FileTabs />
-          Editor 위
           <Editor setCode={setCode} />
-          Editor 아래
           <div
             className="h-1 bg-[#333] cursor-row-resize"
             onMouseDown={startResizing}

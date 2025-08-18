@@ -1,21 +1,17 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { changeName } from "../store/userSlice";
+import { clearAuth } from "../store/userSlice"; // clearToken import
 
 // 최상단 로고, select바, 실행 등
 export default function Header({ onRun, setMode, mode }) {
   //////////////////////////////////////////////
 
   // redux 이름 연습
-  let state = useSelector((state)=>{ return state});
+  let state = useSelector((state)=> state);
   let dispatch = useDispatch()
 
   let currentPageId = state.openPage.current;
-  // console.log(currentPageId)
-  // console.log(state.project.fileMap[currentPageId].content)
-  console.log(state.project.fileMap)
-  let code = state.project.fileMap[currentPageId].content;
-  
+  let code = state.project.fileMap[currentPageId]?.content || "";
 
   // 서버쪽에서 파일 뭉치 주면 파일들 분리해서 폴더 만들기 해야함
   const runCode = async () => {
@@ -36,13 +32,15 @@ export default function Header({ onRun, setMode, mode }) {
   };
   //////////////////////////////////////////////////
 
-
+  const handleLogout = () => {
+    dispatch(clearAuth());
+  };
 
   return (
     <header className="bg-[#252526] h-12 flex items-center px-4 border-b border-[#333]">
       <div className="flex items-center">
         <span className="font-['Pacifico'] text-xl text-white mr-4">
-          Web-IDE {state.user.name}님 <button onClick={()=>{dispatch(changeName({newName: "jaewoo"}))}}>이름변경</button>
+          Web-IDE
         </span>
       </div>
       {/* 옵션바... 프로젝트 선택하게 해야하나? */}
@@ -89,12 +87,10 @@ export default function Header({ onRun, setMode, mode }) {
           <span>중지</span>
         </button>
         <button
-          onClick={() => {
-            console.log("옵션 버튼 클릭");
-          }}
-          className="w-8 h-8 flex items-center justify-center bg-[#3C3C3C] hover:bg-opacity-80 text-white rounded-button"
+          onClick={handleLogout} // 로그아웃 버튼
+          className="flex items-center bg-[#3C3C3C] hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
         >
-          <i className="ri-settings-3-line"></i>
+          <span>Logout</span>
         </button>
       </div>
     </header>
