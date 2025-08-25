@@ -9,6 +9,7 @@ import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";   // ✅ 추가
 
 export default function App() {
+  const [sid, setSid] = useState(null);          // ✅ 서버가 준 세션ID 저장
   const [isGuiVisible, setGuiVisible] = useState(false);
   const [terminalHeight, setTerminalHeight] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
@@ -62,7 +63,21 @@ export default function App() {
       term.write("\r\n🟢 연결됨. 명령을 입력하세요.\r\n");
       term.onData((data) => ws.send(data));
     };
-    ws.onmessage = (e) => term.write(e.data);
+
+    ws.onmessage = (e) => {
+      // 서버에서 오는 첫 메시지는 {"sid": "..."} JSON
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.sid) {
+          setSid(msg.sid);                 // ✅ sid 저장
+          return;                          // 터미널에 출력하지 않음
+        }
+      } catch (_) {
+        // JSON 아니면 터미널 출력(셸 출력)
+      }
+      term.write(e.data);
+    };
+    
     ws.onclose = () => term.write("\r\n🔴 연결 종료됨\r\n");
 
     return () => {
@@ -81,6 +96,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen">
       <Header
+        sid={sid}
         onRun={(u) => { setGuiVisible(true); setUrl(u); }}
         code={code}
         setMode={setMode}

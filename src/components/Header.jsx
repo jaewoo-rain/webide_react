@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { changeName } from "../store/userSlice";
 
 // 최상단 로고, select바, 실행 등
-export default function Header({ onRun, setMode, mode }) {
+export default function Header({ onRun, setMode, mode, sid }) {
   //////////////////////////////////////////////
 
   // redux 이름 연습
@@ -11,9 +11,6 @@ export default function Header({ onRun, setMode, mode }) {
   let dispatch = useDispatch()
 
   let currentPageId = state.openPage.current;
-  // console.log(currentPageId)
-  // console.log(state.project.fileMap[currentPageId].content)
-  console.log(state.project.fileMap)
   let code = state.project.fileMap[currentPageId].content;
   
 
@@ -22,12 +19,18 @@ export default function Header({ onRun, setMode, mode }) {
     const res = await fetch("http://localhost:8000/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: code, tree: state.project.tree , fileMap: state.project.fileMap, run_code: currentPageId}),
+      body: JSON.stringify({ 
+        code: code, 
+        tree: state.project.tree , 
+        fileMap: state.project.fileMap, 
+        run_code: currentPageId,
+        session_id: sid,
+      }),
     });
+    
     const data = await res.json();
     setMode(data.mode);
     if (data.mode === "gui") {
-      // setGuiUrl(data.url);
       console.log("gui");
       onRun(data.url);
     } else {
@@ -70,6 +73,7 @@ export default function Header({ onRun, setMode, mode }) {
             console.log("실행버튼 클릭");
             runCode();
           }}
+          disabled={!sid}
           className="flex items-center bg-primary hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
         >
           <div className="w-5 h-5 flex items-center justify-center mr-1">

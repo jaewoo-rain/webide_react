@@ -36,13 +36,12 @@ export default function Editor() {
       styleActiveLine: true, // 현재 라인 강조
       foldGutter: true, // 코드 접기 UI 활성화
       gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-      inputStyle: "contenteditable",     // ✅ 한글 IME 안정화
-      lineWrapping: true,                 // (선택) 긴 줄 줄바꿈
+      inputStyle: "contenteditable",     // 한글 IME 안정화
+      lineWrapping: true,                 // 긴 줄 줄바꿈
     });
     cm.setSize("100%", "100%");
     editorRef.current = cm;
 
-    // CSS에서도 .CodeMirror { height: 100%; } 보장해 주세요.
   }, []);
 
   // 2) 탭 전환 시: 해당 파일의 Doc으로 교체

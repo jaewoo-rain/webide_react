@@ -25,7 +25,7 @@ export default function TerminalApp(props) {
         </div>
       </div>
 
-      {/* ⬇️ 터미널 영역: 헤더 제외 전체 차지 */}
+      {/* 터미널 영역: 헤더 제외 전체 차지 */}
       <div
         ref={props.termRef}
         className="flex-1 min-h-0 w-full overflow-auto"
