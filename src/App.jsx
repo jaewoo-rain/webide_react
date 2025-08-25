@@ -6,10 +6,11 @@ import Editor from "./components/Editor";
 import TerminalApp from "./components/Terminal";
 import GuiOverlay from "./components/GuiOverlay";
 import { Terminal } from "xterm";
+import { FitAddon } from "xterm-addon-fit";
 
 export default function App() {
   const [isGuiVisible, setGuiVisible] = useState(false);
-  const [terminalHeight, setTerminalHeight] = useState(200); // 초기 높이
+  const [terminalHeight, setTerminalHeight] = useState(400); // 초기 높이
   const [isResizing, setIsResizing] = useState(false);
   const [code, setCode] = useState(""); // 코드 작성 부분
   const [mode, setMode] = useState("cli"); // cli, gui모드 변경
@@ -17,8 +18,10 @@ export default function App() {
 
   const termRef = useRef(null);
   const socketRef = useRef(null);
+  const xtermRef = useRef(null);     // xterm 인스턴스
+  const fitRef = useRef(null);       // FitAddon 인스턴스
 
-  // 스크롤 만들기
+  // 드래그 리사이즈
   const startResizing = () => setIsResizing(true);
   const stopResizing = () => setIsResizing(false);
   const handleMouseMove = (e) => {
@@ -36,10 +39,21 @@ export default function App() {
     };
   }, [isResizing]);
 
-  // 소켓 연결
+  // xterm + 소켓 초기화
   useEffect(() => {
     const term = new Terminal();
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+
     term.open(termRef.current);
+    fitAddon.fit();
+
+    xtermRef.current = term;
+    fitRef.current = fitAddon;
+
+    const onResize = () => fitAddon.fit();
+    window.addEventListener("resize", onResize);
+
     socketRef.current = new WebSocket("ws://localhost:8000/ws");
 
     socketRef.current.onopen = () => {
@@ -58,12 +72,19 @@ export default function App() {
     };
 
     return () => {
-      socketRef.current.close();
+      window.removeEventListener("resize", onResize);
+      try { ws.close(); } catch {}
       term.dispose();
+      xtermRef.current = null;
+      fitRef.current = null;
     };
   }, []);
 
-  ///////////////////////////////////// 근데 왜 이중으로 스크롤이 나옴?
+  useEffect(() => {
+    fitRef.current?.fit();
+  }, [terminalHeight]);
+
+  /////////////////////////////////////
 
   return (
     <div className="flex flex-col h-screen">

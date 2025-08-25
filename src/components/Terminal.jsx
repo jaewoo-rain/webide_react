@@ -2,20 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Terminal } from "xterm";
 import "xterm/css/xterm.css";
 
-// import styles from "./Terminal.modul.css";
-
 export default function TerminalApp(props) {
-  const logs = [
-    "$ python app.py",
-    '* Serving Flask app "__name__"',
-    "* Debug mode: on",
-    "* Running on http://0.0.0.0:5000",
-    "* Restarting with stat",
-    "* Debugger is active!",
-    "* Debugger PIN: 123-456-789",
-    '127.0.0.1 - - [23/Jun/2025 14:32:15] "GET / HTTP/1.1" 200 -',
-    '127.0.0.1 - - [23/Jun/2025 14:32:16] "GET /api/data HTTP/1.1" 200 -',
-  ];
 
   let isClick = 0;
 
@@ -67,7 +54,7 @@ export default function TerminalApp(props) {
 
   return (
     // <div id="terminal" className="terminal h-48">
-    <div id="terminal" className="terminal ">
+    <div id="terminal" className="h-full w-full bg-black">
       <div className="flex bg-[#2D2D2D] text-sm border-b border-[#333] ">
         <div
           className={`px-3 py-1 border-r border-[#333] ${
@@ -124,36 +111,14 @@ export default function TerminalApp(props) {
         </div>
       </div>
       {/* 터미널 창 내용 */}
-      {/* <div className="p-2 font-mono text-sm h-[calc(100%-32px)] overflow-auto">
-        {logs.map((line, i) => (
-          <div
-            key={i}
-            className={
-              line.startsWith("$")
-                ? "text-[#858585]"
-                : line.includes("http")
-                ? "text-[#4EC9B0]"
-                : "text-white"
-            }
-          >
-            {line}
-          </div>
-        ))}
-        <div className="text-white flex items-center">
-          <span className="text-green-500 mr-1">$</span>
-          <span className="animate-pulse">|</span>
-        </div>
-      </div> */}
-      <h3>💻 CLI 출력</h3>
       <div
+      className="h-[calc(100%-32px)]"
         ref={props.termRef}
         style={{
-          width: "100%",
-          height: 300,
           background: "#000",
-          marginTop: 10,
-          paddingLeft: 5,
-          paddingTop: 5,
+          marginTop: 0,
+          paddingLeft: 15,
+          paddingTop: 0,
           // display: props.mode === "cli" ? "block" : "none",
         }}
       />{" "}
