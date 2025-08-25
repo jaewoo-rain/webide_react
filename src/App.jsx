@@ -6,19 +6,22 @@ import Editor from "./components/Editor";
 import TerminalApp from "./components/Terminal";
 import GuiOverlay from "./components/GuiOverlay";
 import { Terminal } from "xterm";
+import { FitAddon } from "xterm-addon-fit";   // ✅ 추가
 
 export default function App() {
   const [isGuiVisible, setGuiVisible] = useState(false);
-  const [terminalHeight, setTerminalHeight] = useState(200); // 초기 높이
+  const [terminalHeight, setTerminalHeight] = useState(400);
   const [isResizing, setIsResizing] = useState(false);
-  const [code, setCode] = useState(""); // 코드 작성 부분
-  const [mode, setMode] = useState("cli"); // cli, gui모드 변경
+  const [code, setCode] = useState("");
+  const [mode, setMode] = useState("cli");
   const [url, setUrl] = useState("");
 
-  const termRef = useRef(null);
+  const termRef = useRef(null);      // DOM 컨테이너
+  const xtermRef = useRef(null);     // xterm 인스턴스
+  const fitRef = useRef(null);       // FitAddon 인스턴스
   const socketRef = useRef(null);
 
-  // 스크롤 만들기
+  // 드래그 리사이즈
   const startResizing = () => setIsResizing(true);
   const stopResizing = () => setIsResizing(false);
   const handleMouseMove = (e) => {
@@ -36,42 +39,44 @@ export default function App() {
     };
   }, [isResizing]);
 
-  // 소켓 연결
+  // xterm + WebSocket 초기화
   useEffect(() => {
     const term = new Terminal();
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+
     term.open(termRef.current);
-    socketRef.current = new WebSocket("ws://localhost:8000/ws");
+    fitAddon.fit();                // 최초 맞춤
 
-    socketRef.current.onopen = () => {
+    xtermRef.current = term;       // refs 저장
+    fitRef.current = fitAddon;
+
+    const onResize = () => fitAddon.fit();
+    window.addEventListener("resize", onResize);
+
+    const ws = new WebSocket("ws://localhost:8000/ws");
+    socketRef.current = ws;
+
+    ws.onopen = () => {
       term.write("\r\n🟢 연결됨. 명령을 입력하세요.\r\n");
-      term.onData((data) => {
-        socketRef.current.send(data);
-      });
+      term.onData((data) => ws.send(data));
     };
-
-    socketRef.current.onmessage = (event) => {
-      term.write(event.data);
-    };
-
-    socketRef.current.onclose = () => {
-      term.write("\r\n🔴 연결 종료됨\r\n");
-    };
+    ws.onmessage = (e) => term.write(e.data);
+    ws.onclose = () => term.write("\r\n🔴 연결 종료됨\r\n");
 
     return () => {
-      socketRef.current.close();
+      window.removeEventListener("resize", onResize);
+      try { ws.close(); } catch {}
       term.dispose();
+      xtermRef.current = null;
+      fitRef.current = null;
     };
   }, []);
-
-  ///////////////////////////////////// 근데 왜 이중으로 스크롤이 나옴?
 
   return (
     <div className="flex flex-col h-screen">
       <Header
-        onRun={(url) => {
-          setGuiVisible(true);
-          setUrl(url);
-        }}
+        onRun={(u) => { setGuiVisible(true); setUrl(u); }}
         code={code}
         setMode={setMode}
         mode={mode}
@@ -80,26 +85,19 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <div className="w-1 bg-[#333] sidebar-resize" />
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           <FileTabs />
-          Editor 위
+          {/* Editor 영역 */}
           <Editor setCode={setCode} />
-          Editor 아래
-          <div
-            className="h-1 bg-[#333] cursor-row-resize"
-            onMouseDown={startResizing}
-          />
-          <div
-            style={{ height: `${terminalHeight}px` }}
-            className="overflow-hidden"
-          >
+          {/* 리사이저 바 */}
+          <div className="h-1 bg-[#333] cursor-row-resize" onMouseDown={startResizing} />
+          {/* 터미널 래퍼: 픽셀 높이만 주고, 내부는 100% 채움 */}
+          <div style={{ height: `${terminalHeight}px` }} className="overflow-hidden">
             <TerminalApp mode={mode} termRef={termRef} />
           </div>
         </div>
       </div>
-      {isGuiVisible && (
-        <GuiOverlay url={url} onClose={() => setGuiVisible(false)} />
-      )}
+      {isGuiVisible && <GuiOverlay url={url} onClose={() => setGuiVisible(false)} />}
     </div>
   );
 }

@@ -26,31 +26,41 @@ let project = createSlice({
         }
     },
     reducers:{
-        addFile(state, action){
-            // file 추가
-            let {fileName, parentId} = action.payload;
-            if(fileName.trim() == ""){
-                return
+        addFile(state, action) {
+            let { fileName, parentId } = action.payload;
+            if (!fileName || fileName.trim() === "") return;
+
+            // ✅ 동일 폴더 내 이름 중복 방지
+            if (hasNameInFolder(state, parentId, fileName)) {
+                // 필요하면 에러 상태 저장 or 토스트용 플래그 세팅
+                return;
             }
+
             const newId = nanoid();
             state.fileMap[newId] = { name: fileName, content: "", type: "file" };
-            
-            // tree 추가
-            let parentNode = findNode(state.tree, parentId)
-            if(parentNode && parentNode.type == "folder"){
-                parentNode.children.push({id: newId, type:"file"})
-            }
-        },
-        addFolder(state, action){
-            let {folderName, parentId} = action.payload;
-            if(folderName.trim() == ""){
-                return
-            }
-            const newId = nanoid();
-            state.fileMap[newId] = {name:folderName, type:"folder"}
 
-            let parentNode = findNode(state.tree, parentId)
-            if(parentNode && parentNode.type == "folder"){
+            const parentNode = findNode(state.tree, parentId);
+            if (parentNode && parentNode.type === "folder") {
+                parentNode.children.push({ id: newId, type: "file" });
+            }
+            },
+
+            addFolder(state, action) {
+            let { folderName, parentId } = action.payload;
+            if (!folderName || folderName.trim() === "") return;
+
+            // 동일 폴더 내 이름 중복 방지
+            if (hasNameInFolder(state, parentId, folderName)) {
+                // 필요하면 에러 상태 저장 or 토스트용 플래그 세팅
+                return;
+            }
+
+            const newId = nanoid();
+            state.fileMap[newId] = { name: folderName, type: "folder" };
+
+            const parentNode = findNode(state.tree, parentId);
+            if (parentNode && parentNode.type === "folder") {
+                if (!parentNode.children) parentNode.children = [];
                 parentNode.children.push({ id: newId, type: "folder", children: [] });
             }
         },
@@ -70,6 +80,24 @@ let project = createSlice({
 
     }
 })
+
+
+// 이름 중복 검사 (같은 폴더 내, 파일/폴더 구분 없이, 대소문자 무시)
+function hasNameInFolder(state, parentId, name) {
+  const parent = findNode(state.tree, parentId);
+  if (!parent || parent.type !== "folder") return false;
+
+  const target = name.trim().toLowerCase();
+  if (!parent.children) return false;
+
+  return parent.children.some(child => {
+    const node = state.fileMap[child.id];
+    if (!node) return false;
+    const childName = (node.name || "").trim().toLowerCase();
+    return childName === target;
+  });
+}
+
 
 
 // DFS 깊이 우선 탐색
