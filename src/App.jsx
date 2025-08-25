@@ -22,6 +22,7 @@ export default function App() {
   const socketRef = useRef(null);
 
   // 드래그 리사이즈
+  // 드래그 리사이즈
   const startResizing = () => setIsResizing(true);
   const stopResizing = () => setIsResizing(false);
   const handleMouseMove = (e) => {
@@ -67,7 +68,11 @@ export default function App() {
     return () => {
       window.removeEventListener("resize", onResize);
       try { ws.close(); } catch {}
+      window.removeEventListener("resize", onResize);
+      try { ws.close(); } catch {}
       term.dispose();
+      xtermRef.current = null;
+      fitRef.current = null;
       xtermRef.current = null;
       fitRef.current = null;
     };
