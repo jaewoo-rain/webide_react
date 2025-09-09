@@ -49,7 +49,8 @@ export default function App() {
 
   // xterm + WebSocket 초기화
   useEffect(() => {
-    if (!isLoggedIn || !ideVisible) return;
+    // if (!isLoggedIn || !ideVisible) return;
+    if (isLoggedIn || !ideVisible) return;
 
     const term = new Terminal();
     const fitAddon = new FitAddon();

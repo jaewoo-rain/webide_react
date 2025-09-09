@@ -12,8 +12,6 @@ export default function Header({ onRun, setMode, mode, sid }) {
   let dispatch = useDispatch()
 
   let currentPageId = state.openPage.current;
-  let code = state.project.fileMap[currentPageId].content;
-
   let code = state.project.fileMap[currentPageId]?.content || "";
 
   // 서버쪽에서 파일 뭉치 주면 파일들 분리해서 폴더 만들기 해야함
