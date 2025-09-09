@@ -11,7 +11,7 @@ import "codemirror/addon/fold/foldgutter";
 import "codemirror/addon/selection/active-line";
 
 import { useDispatch, useSelector } from "react-redux";
-import { setCode } from "../store/projectSlice";
+import { setCode } from "../../store/projectSlice";
 
 export default function Editor() {
   const textareaRef = useRef(null);
@@ -79,14 +79,14 @@ export default function Editor() {
 
   return (
     <>
-    <div className="flex-1 overflow-auto code-editor h-full w-full">
-      <div style={{ height: "100%", width: "100%" }}>
-        <textarea
-          ref={textareaRef} // 처음에는 <textarea>만 있음 CodeMirror가 실행되면, 이 <textarea>는 사라지고 그 자리에 CodeMirror가 만든 고급 코드 편집기 UI가 대신 보여져.
-          style={{ display: "none"}}
-        />
+      <div className="flex-1 overflow-auto code-editor h-full w-full">
+        <div style={{ height: "100%", width: "100%" }}>
+          <textarea
+            ref={textareaRef} // 처음에는 <textarea>만 있음 CodeMirror가 실행되면, 이 <textarea>는 사라지고 그 자리에 CodeMirror가 만든 고급 코드 편집기 UI가 대신 보여져.
+            style={{ display: "none" }}
+          />
+        </div>
       </div>
-    </div>
     </>
   );
 }

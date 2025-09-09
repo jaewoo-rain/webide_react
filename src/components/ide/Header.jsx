@@ -1,33 +1,33 @@
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { changeName } from "../store/userSlice";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+
 
 // 최상단 로고, select바, 실행 등
-export default function Header({ onRun, setMode, mode, sid }) {
+export default function Header({ onRun, setMode, sid }) {
   //////////////////////////////////////////////
 
-  // redux 이름 연습
-  let state = useSelector((state)=>{ return state});
-  let dispatch = useDispatch()
+  const navigate = useNavigate()
+
+  let state = useSelector((state) => state);
 
   let currentPageId = state.openPage.current;
-  let code = state.project.fileMap[currentPageId].content;
-  
+  let code = state.project.fileMap[currentPageId]?.content || "";
 
   // 서버쪽에서 파일 뭉치 주면 파일들 분리해서 폴더 만들기 해야함
   const runCode = async () => {
     const res = await fetch("http://localhost:8000/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        code: code, 
-        tree: state.project.tree , 
-        fileMap: state.project.fileMap, 
+      body: JSON.stringify({
+        code: code,
+        tree: state.project.tree,
+        fileMap: state.project.fileMap,
         run_code: currentPageId,
         session_id: sid,
       }),
     });
-    
+
     const data = await res.json();
     setMode(data.mode);
     if (data.mode === "gui") {
@@ -39,13 +39,11 @@ export default function Header({ onRun, setMode, mode, sid }) {
   };
   //////////////////////////////////////////////////
 
-
-
   return (
     <header className="bg-[#252526] h-12 flex items-center px-4 border-b border-[#333]">
       <div className="flex items-center">
         <span className="font-['Pacifico'] text-xl text-white mr-4">
-          Web-IDE {state.user.name}님 <button onClick={()=>{dispatch(changeName({newName: "jaewoo"}))}}>이름변경</button>
+          Web-IDE
         </span>
       </div>
       {/* 옵션바... 프로젝트 선택하게 해야하나? */}
@@ -93,12 +91,10 @@ export default function Header({ onRun, setMode, mode, sid }) {
           <span>중지</span>
         </button>
         <button
-          onClick={() => {
-            console.log("옵션 버튼 클릭");
-          }}
-          className="w-8 h-8 flex items-center justify-center bg-[#3C3C3C] hover:bg-opacity-80 text-white rounded-button"
+          onClick={() => { navigate(-1) }} // 로그아웃 버튼
+          className="flex items-center bg-[#3C3C3C] hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
         >
-          <i className="ri-settings-3-line"></i>
+          <span>목록으로</span>
         </button>
       </div>
     </header>
