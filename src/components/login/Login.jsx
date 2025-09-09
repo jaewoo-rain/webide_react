@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useDispatch } from 'react-redux';
-import { setToken, setUser } from '../store/userSlice';
+import { setToken, setUser } from '../../store/userSlice';
 import { jwtDecode } from 'jwt-decode';
 
 export default function Login({ onSuccess, onClose }) {
@@ -12,8 +12,8 @@ export default function Login({ onSuccess, onClose }) {
   const dispatch = useDispatch();
 
   const handleLogin = async (e) => {
-  e.preventDefault();
-  setError('');
+    e.preventDefault();
+    setError('');
 
     try {
       const response = await axios.post(
@@ -72,8 +72,8 @@ export default function Login({ onSuccess, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="relative p-8 bg-gray-900 rounded-lg shadow-xl">
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="absolute top-2 right-2 text-gray-400 hover:text-white"
         >
           &times;

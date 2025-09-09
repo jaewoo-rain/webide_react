@@ -1,6 +1,6 @@
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearAuth } from '../store/userSlice';
+import { clearAuth } from '../../store/userSlice';
 import axios from "axios";
 
 export default function Main({ onStartCoding, onLoginClick }) {

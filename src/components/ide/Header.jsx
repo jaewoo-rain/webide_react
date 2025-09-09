@@ -1,15 +1,15 @@
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { clearAuth } from "../store/userSlice"; // clearToken import
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 
 // 최상단 로고, select바, 실행 등
-export default function Header({ onRun, setMode, mode, sid }) {
+export default function Header({ onRun, setMode, sid }) {
   //////////////////////////////////////////////
 
-  // redux 이름 연습
+  const navigate = useNavigate()
+
   let state = useSelector((state) => state);
-  let dispatch = useDispatch()
 
   let currentPageId = state.openPage.current;
   let code = state.project.fileMap[currentPageId]?.content || "";
@@ -38,10 +38,6 @@ export default function Header({ onRun, setMode, mode, sid }) {
     }
   };
   //////////////////////////////////////////////////
-
-  const handleLogout = () => {
-    dispatch(clearAuth());
-  };
 
   return (
     <header className="bg-[#252526] h-12 flex items-center px-4 border-b border-[#333]">
@@ -95,10 +91,10 @@ export default function Header({ onRun, setMode, mode, sid }) {
           <span>중지</span>
         </button>
         <button
-          onClick={handleLogout} // 로그아웃 버튼
+          onClick={() => { navigate(-1) }} // 로그아웃 버튼
           className="flex items-center bg-[#3C3C3C] hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
         >
-          <span>Logout</span>
+          <span>목록으로</span>
         </button>
       </div>
     </header>
