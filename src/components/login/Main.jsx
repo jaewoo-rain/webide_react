@@ -12,8 +12,8 @@ export default function Main({ onStartCoding, onLoginClick }) {
     try {
       // CreateContainerRequest 모델에 맞춰 데이터 구성
       const requestData = {
-        image: "ide-python", // 예시 값, 실제로는 사용자 입력 등에서 가져와야 함
-        cmd: [], // 예시 값
+        projectName: "webide",          // ★ 필수
+        image: "webide-vnc", cmd: [], // 예시 값
         env: {}, // 예시 값
         // 필요한 추가 옵션들: ports, volumes 등
       };

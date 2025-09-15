@@ -16,10 +16,14 @@ export default function Login({ onSuccess, onClose }) {
     setError('');
 
     try {
+
       const response = await axios.post(
         'http://localhost:8080/login',
         { username, password },
-        { withCredentials: true } // refresh 쿠키 받으려면 필요
+        {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: true, // 쿠키(리프레시) 받는다면 유지
+        }
       );
 
       // 디버깅용: 실제로 뭐가 들어오는지 확인
