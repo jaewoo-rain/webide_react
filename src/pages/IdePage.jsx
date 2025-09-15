@@ -7,10 +7,10 @@ import Editor from "../components/ide/Editor";
 import TerminalApp from "../components/ide/Terminal";
 import GuiOverlay from "../components/ide/GuiOverlay";
 import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";   // ✅ 추가
+import { FitAddon } from "xterm-addon-fit";   // 추가
 
 export default function IdePage() {
-    const [sid, setSid] = useState(null);          // ✅ 서버가 준 세션ID 저장
+    const [sid, setSid] = useState(null);          // 서버가 준 세션ID 저장
     const { isLoggedIn } = useSelector((state) => state.user);
     const [isGuiVisible, setGuiVisible] = useState(false);
     const [terminalHeight, setTerminalHeight] = useState(400);
@@ -32,6 +32,13 @@ export default function IdePage() {
         const newHeight = window.innerHeight - e.clientY;
         setTerminalHeight(Math.max(newHeight, 100));
     };
+
+    // terminalHeight가 변경될 때마다 터미널 크기를 다시 맞춥니다.
+    useEffect(() => {
+        if (fitRef.current) {
+            fitRef.current.fit();
+        }
+    }, [terminalHeight]); // terminalHeight가 변경될 때마다 이 effect를 실행합니다.
 
     useEffect(() => {
         window.addEventListener("mousemove", handleMouseMove);
@@ -84,10 +91,7 @@ export default function IdePage() {
         ws.onclose = () => term.write("\r\n🔴 연결 종료됨\r\n");
 
         return () => {
-            window.removeEventListener("resize", onResize);
-            try { ws.close(); } catch (e) {
-                console.error(e)
-            }
+
             window.removeEventListener("resize", onResize);
             try { ws.close(); } catch (e) {
                 console.error(e)
@@ -113,7 +117,10 @@ export default function IdePage() {
                 setUrl={setUrl}
             />
             <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
+                <div className="w-64 shrink-0">
+                    <Sidebar />
+                </div>
+
                 <div className="w-1 bg-[#333] sidebar-resize" />
                 <div className="flex-1 flex flex-col min-h-0">
                     <FileTabs />
