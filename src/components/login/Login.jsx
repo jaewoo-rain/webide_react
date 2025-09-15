@@ -9,11 +9,14 @@ export default function Login({ onSuccess, onClose }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
   const dispatch = useDispatch();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
     try {
       const response = await axios.post(
@@ -22,24 +25,14 @@ export default function Login({ onSuccess, onClose }) {
         { withCredentials: true } // refresh 쿠키 받으려면 필요
       );
 
-      // 디버깅용: 실제로 뭐가 들어오는지 확인
-      console.log('headers keys:', Object.keys(response.headers || {}));
-      console.log('raw authorization:', response.headers?.['authorization']);
-      console.log('data:', response.data);
-
-      // 1) Authorization 헤더에서 access token 추출
       const authHeader = response.headers?.['authorization'] || response.headers?.['Authorization'];
       let accessTokenFromHeader = undefined;
       if (authHeader && typeof authHeader === 'string') {
-        // "Bearer <token>" 형태 처리
         const parts = authHeader.split(' ');
         accessTokenFromHeader = parts.length === 2 ? parts[1] : authHeader;
       }
 
-      // 2) 바디에 오는 경우 대비 (현재 응답은 body가 비어있지만 방어코드)
       const accessTokenFromBody = response.data?.access || response.data?.accessToken || response.data?.token;
-
-      // 3) 최종 access token 결정
       const accessToken = accessTokenFromHeader || accessTokenFromBody;
 
       if (!accessToken) {
@@ -48,16 +41,13 @@ export default function Login({ onSuccess, onClose }) {
         return;
       }
 
-      // 4) Redux 저장 (여기서 localStorage에 undefined가 들어갔던 원인 해결)
       dispatch(setToken(accessToken));
 
-      // 5) 토큰 디코딩 (실패 대비)
       try {
         const decoded = jwtDecode(accessToken);
         dispatch(setUser({ username: decoded.username, role: decoded.role }));
       } catch (decodeErr) {
         console.warn('JWT decode 실패:', decodeErr);
-        // 디코딩 실패해도 로그인은 성공시킬지 정책에 따라 결정
         dispatch(setUser({ username, role: undefined }));
       }
 
@@ -68,6 +58,20 @@ export default function Login({ onSuccess, onClose }) {
     }
   };
 
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      await axios.post('http://localhost:8080/api/member', { username, password });
+      setSuccessMessage('Sign up successful! Please log in.');
+      setIsSigningUp(false);
+    } catch (err) {
+      console.error('Sign up error:', err);
+      setError('Sign up failed. Please try again.');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -78,9 +82,10 @@ export default function Login({ onSuccess, onClose }) {
         >
           &times;
         </button>
-        <h2 className="mb-6 text-2xl font-bold text-white">Login</h2>
+        <h2 className="mb-6 text-2xl font-bold text-white">{isSigningUp ? 'Sign Up' : 'Login'}</h2>
         {error && <p className="mb-4 text-red-500">{error}</p>}
-        <form onSubmit={handleLogin}>
+        {successMessage && <p className="mb-4 text-green-500">{successMessage}</p>}
+        <form onSubmit={isSigningUp ? handleSignUp : handleLogin}>
           <div className="mb-4">
             <label className="block mb-2 text-sm font-bold text-gray-400" htmlFor="username">
               Username
@@ -110,7 +115,18 @@ export default function Login({ onSuccess, onClose }) {
               type="submit"
               className="px-4 py-2 font-bold text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline"
             >
-              Sign In
+              {isSigningUp ? 'Sign Up' : 'Sign In'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSigningUp(!isSigningUp);
+                setError('');
+                setSuccessMessage('');
+              }}
+              className="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800"
+            >
+              {isSigningUp ? 'Back to Login' : 'Sign Up'}
             </button>
           </div>
         </form>
