@@ -1,4 +1,4 @@
-import LoginPage from "./pages/LoginPage";
+import MainPage from "./pages/MainPage";
 import IdePage from "./pages/IdePage";
 import { Route, Routes } from "react-router-dom";
 
@@ -7,7 +7,7 @@ export default function App() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<LoginPage />} />
+        <Route path="/" element={<MainPage />} />
         <Route path="/ide" element={<IdePage />} />
       </Routes>
     </>
