@@ -1,151 +1,105 @@
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import axios from "axios";
+import { clearAuth } from "../../store/userSlice";
+import { setProjects, setContainer } from "../../store/containerSlice";
+import CreateProjectModal from "./CreateProjectModal";
+import { useNavigate } from "react-router-dom";
 
-import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { clearAuth } from '../../store/userSlice';
-
-// 임시 프로젝트 데이터
-const dummyProjects = [
-  { id: 1, name: 'My First Project', language: 'Python', lastModified: '2024-07-30' },
-  { id: 2, name: 'Web Server', language: 'JavaScript', lastModified: '2024-07-29' },
-  { id: 3, name: 'Data Analysis', language: 'Python', lastModified: '2024-07-28' },
-  { id: 4, name: 'React App', language: 'JavaScript', lastModified: '2024-07-27' },
-];
-
-function CreateProjectModal({ onClose, onSubmit }) {
-  const [projectName, setProjectName] = useState('');
-  const [image, setImage] = useState('');
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({ projectName, image: image || 'ide-python' });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-gray-700 p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-white">새 프로젝트 생성</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="projectName" className="block text-white text-sm font-bold mb-2">
-              프로젝트 이름
-            </label>
-            <input
-              type="text"
-              id="projectName"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className="w-full px-3 py-2 text-white bg-gray-800 rounded-lg focus:outline-none focus:shadow-outline"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label htmlFor="image" className="block text-white text-sm font-bold mb-2">
-              사용 언어
-            </label>
-            <input
-              type="text"
-              id="image"
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              className="w-full px-3 py-2 text-white bg-gray-800 rounded-lg focus:outline-none focus:shadow-outline"
-              placeholder="예: ide-react (미입력 시 ide-python)"
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 mr-2 font-bold text-gray-300 bg-gray-600 rounded-lg hover:bg-gray-500 focus:outline-none focus:shadow-outline"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline"
-            >
-              생성
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-
-export default function Main({ onStartCoding, onLoginClick }) {
-  const { token, user: userInfo } = useSelector((state) => state.user);
-  const isLoggedIn = !!token;
+export default function Main({ onLoginClick }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { token, user: userInfo } = useSelector((s) => s.user);
+  const projects = useSelector((s) => s.container.projects);
+  const isLoggedIn = !!token;
 
-  const handleCreateContainer = async () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const apiBase = "http://localhost:8000";
+
+  // 목록 로드
+  const loadProjects = async () => {
+    if (!token) return;
+    setLoading(true);
     try {
-      // CreateContainerRequest 모델에 맞춰 데이터 구성
-      const requestData = {
-        projectName: "webide",          // ★ 필수
-        image: "webide-vnc", cmd: [], // 예시 값
-        env: {}, // 예시 값
-        // 필요한 추가 옵션들: ports, volumes 등
-      };
-
-      const response = await axios.post('http://localhost:8000/containers', requestData);
-      if (response.status === 201) {
-        // CreateContainerResponse 모델에 맞춰 응답 데이터 처리
-        const { id, name, image, owner, role, limited_by_quota } = response.data;
-        alert(`컨테이너 생성 성공!\n이름: ${name}\nID: ${id}\n이미지: ${image}\n소유자: ${owner}\n역할: ${role}\n할당량 제한: ${limited_by_quota}`);
-        // TODO: 컨테이너 목록을 다시 불러오는 로직 추가
-      }
-    } catch (error) {
-      console.error("컨테이너 생성 실패:", error);
-      if (error.response) {
-        alert(`오류: ${error.response.data.detail}`);
-      } else {
-        alert("컨테이너를 생성하는 중 오류가 발생했습니다.");
-      }
+      const res = await axios.get(`${apiBase}/containers/my`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      dispatch(setProjects(res.data || []));
+    } catch (err) {
+      console.error("프로젝트 목록 실패:", err?.response || err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
-    dispatch(clearAuth());
+  useEffect(() => {
+    loadProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // 기존 컨테이너 재접속
+  const openExisting = async (p) => {
+    try {
+      if (!token) return alert("로그인이 필요합니다.");
+      const cid = p.containerName || p.id || p.container_id || p.name;
+      if (!cid) return alert("컨테이너 ID를 찾을 수 없습니다.");
+      const res = await axios.get(`${apiBase}/containers/${cid}/urls`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { ws_url, vnc_url, cid: fullCid } = res.data;
+      dispatch(setContainer({
+        cid: fullCid,
+        wsUrl: ws_url,
+        vncUrl: vnc_url,
+        name: p.projectName || p.containerName || p.name,
+        image: p.imageName || p.image,
+        projectName: p.projectName,
+      }));
+      navigate("/ide"); // 파라미터 대신 리덕스로
+    } catch (e) {
+      console.error("재접속 실패:", e?.response || e);
+      alert(e?.response?.data?.detail || "재접속 중 오류가 발생했습니다.");
+    }
   };
 
+  // 새 컨테이너 생성
   const handleCreateProject = async ({ projectName, image }) => {
     try {
-      const response = await fetch('http://localhost:8000/containers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ projectName, image }),
+      if (!token) return alert("로그인이 필요합니다.");
+      const body = { projectName, image: image?.trim() || "webide-vnc" };
+      const res = await axios.post(`${apiBase}/containers`, body, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (response.ok) {
-        alert('프로젝트가 성공적으로 생성되었습니다.');
+      if (res.status === 201) {
+        const { ws_url, vnc_url, id, name, image, projectName } = res.data;
+        // 생성 직후 바로 접속 상태 저장
+        dispatch(setContainer({
+          cid: id,                // 12자리일 수도 있음 → IDE에서 풀ID로 재발급 받음
+          wsUrl: ws_url,
+          vncUrl: vnc_url,
+          name,
+          image,
+          projectName,
+        }));
         setIsModalOpen(false);
-        // Optionally, refresh the project list
-      } else {
-        const errorData = await response.json();
-        alert(`프로젝트 생성 실패: ${errorData.message}`);
+        await loadProjects();
+        navigate("/ide");
       }
     } catch (error) {
-      console.error('프로젝트 생성 중 오류 발생:', error);
-      alert('프로젝트 생성 중 오류가 발생했습니다.');
+      console.error("프로젝트 생성 실패:", error?.response || error);
+      alert(error?.response?.data?.detail || "생성 중 오류가 발생했습니다.");
     }
   };
 
-  const getRoleText = (role) => {
-    switch (role) {
-      case 'ROLE_FREE':
-        return '일반회원';
-      case 'ROLE_MEMBER':
-        return '멤버십회원';
-      case 'ROLE_ADMIN':
-        return '관리자';
-      default:
-        return '';
-    }
-  };
+  const handleLogout = () => dispatch(clearAuth());
+
+  const getRoleText = (role) => ({
+    ROLE_FREE: "일반회원",
+    ROLE_MEMBER: "멤버십회원",
+    ROLE_ADMIN: "관리자",
+  }[role] || "");
 
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-800 text-white p-4">
@@ -153,63 +107,56 @@ export default function Main({ onStartCoding, onLoginClick }) {
         {isLoggedIn ? (
           <>
             {userInfo && <span className="mr-4 text-lg">{getRoleText(userInfo.role)}</span>}
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 focus:outline-none focus:shadow-outline"
-            >
-              로그아웃
-            </button>
+            <button onClick={handleLogout} className="px-4 py-2 font-bold text-white bg-red-600 rounded-lg hover:bg-red-700">로그아웃</button>
           </>
         ) : (
-          <button
-            onClick={onLoginClick}
-            className="px-4 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline"
-          >
-            로그인
-          </button>
+          <button onClick={onLoginClick} className="px-4 py-2 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700">로그인</button>
         )}
       </div>
 
       <div className="w-full max-w-5xl mt-24 text-center">
         <h1 className="text-5xl font-bold mb-12">
-          {isLoggedIn && userInfo ? `${userInfo.username}님, 환영합니다!` : '환영합니다!'}
+          {isLoggedIn && userInfo ? `${userInfo.username}님, 환영합니다!` : "환영합니다!"}
         </h1>
 
         <div className="flex justify-between items-center mb-6 px-2">
           <h2 className="text-3xl font-bold">내 프로젝트 목록</h2>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-6 py-3 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:shadow-outline"
-          >
-            프로젝트 생성하기
-          </button>
+          {isLoggedIn && (
+            <button onClick={() => setIsModalOpen(true)} className="px-6 py-3 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+              프로젝트 생성하기
+            </button>
+          )}
         </div>
 
-        {isModalOpen && (
-          <CreateProjectModal
-            onClose={() => setIsModalOpen(false)}
-            onSubmit={handleCreateProject}
-          />
+        {isLoggedIn && isModalOpen && (
+          <CreateProjectModal onClose={() => setIsModalOpen(false)} onSubmit={handleCreateProject} />
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {dummyProjects.map((project) => (
-            <div key={project.id}
-              className="bg-gray-700 p-6 rounded-lg shadow-lg hover:bg-gray-600 transition-colors duration-300 cursor-pointer flex flex-col justify-between text-left"
-              onClick={onStartCoding}
-            >
-              <div>
-                <h3 className="text-2xl font-bold mb-2">{project.name}</h3>
-                <span className="inline-block bg-gray-500 text-white text-sm font-semibold px-3 py-1 rounded-full mb-4">
-                  {project.language}
-                </span>
+        {loading ? (
+          <p className="text-gray-400">불러오는 중...</p>
+        ) : (projects || []).length === 0 ? (
+          <p className="text-gray-400">프로젝트가 없습니다.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((p) => (
+              <div
+                key={p.containerId || p.containerName || p.name}
+                className="bg-gray-700 p-6 rounded-lg shadow-lg hover:bg-gray-600 transition-colors duration-300 cursor-pointer flex flex-col justify-between text-left"
+                onClick={() => openExisting(p)}
+              >
+                <div>
+                  <h3 className="text-2xl font-bold mb-2">{p.projectName || p.containerName || p.name}</h3>
+                  <span className="inline-block bg-gray-500 text-white text-sm font-semibold px-3 py-1 rounded-full mb-4">
+                    {p.language || p.imageName || p.image || "-"}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-400 mt-4">
+                  <p>업데이트: {p.updatedAt ? new Date(p.updatedAt).toLocaleString() : "-"}</p>
+                </div>
               </div>
-              <div className="text-sm text-gray-400 mt-4">
-                <p>마지막 수정: {project.lastModified}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

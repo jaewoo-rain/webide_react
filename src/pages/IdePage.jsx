@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import Header from "../components/ide/Header";
 import Sidebar from "../components/ide/Sidebar";
 import FileTabs from "../components/ide/FileTabs";
@@ -7,24 +7,30 @@ import Editor from "../components/ide/Editor";
 import TerminalApp from "../components/ide/Terminal";
 import GuiOverlay from "../components/ide/GuiOverlay";
 import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";   // 추가
+import { FitAddon } from "xterm-addon-fit";
+import { useNavigate } from "react-router-dom";
+import { setContainer, updateContainerUrls } from "../store/containerSlice";
 
 export default function IdePage() {
-    const [sid, setSid] = useState(null);          // 서버가 준 세션ID 저장
-    const { isLoggedIn } = useSelector((state) => state.user);
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+
+    const token = useSelector((s) => s.user.token);
+    const isLoggedIn = !!token;
+    const current = useSelector((s) => s.container.current); // {cid, wsUrl, vncUrl, ...}
+
+    const [sid, setSid] = useState(null);
     const [isGuiVisible, setGuiVisible] = useState(false);
     const [terminalHeight, setTerminalHeight] = useState(400);
     const [isResizing, setIsResizing] = useState(false);
-    const [code, setCode] = useState("");
     const [mode, setMode] = useState("cli");
     const [url, setUrl] = useState("");
 
-    const termRef = useRef(null);      // DOM 컨테이너
-    const xtermRef = useRef(null);     // xterm 인스턴스
-    const fitRef = useRef(null);       // FitAddon 인스턴스
+    const termRef = useRef(null);
+    const xtermRef = useRef(null);
+    const fitRef = useRef(null);
     const socketRef = useRef(null);
 
-    // 스크롤 만들기
     const startResizing = () => setIsResizing(true);
     const stopResizing = () => setIsResizing(false);
     const handleMouseMove = (e) => {
@@ -33,12 +39,9 @@ export default function IdePage() {
         setTerminalHeight(Math.max(newHeight, 100));
     };
 
-    // terminalHeight가 변경될 때마다 터미널 크기를 다시 맞춥니다.
     useEffect(() => {
-        if (fitRef.current) {
-            fitRef.current.fit();
-        }
-    }, [terminalHeight]); // terminalHeight가 변경될 때마다 이 effect를 실행합니다.
+        if (fitRef.current) fitRef.current.fit();
+    }, [terminalHeight]);
 
     useEffect(() => {
         window.addEventListener("mousemove", handleMouseMove);
@@ -49,92 +52,147 @@ export default function IdePage() {
         };
     }, [isResizing]);
 
+    // 로그인/접속 정보 체크
+    useEffect(() => {
+        if (!isLoggedIn) {
+            navigate("/login", { replace: true });
+            return;
+        }
+        if (!current) {
+            // 새로고침 복구: lastCid 기반으로 ws_url 재발급
+            const savedCid = sessionStorage.getItem("lastCid");
+            if (!savedCid) {
+                navigate("/", { replace: true });
+                return;
+            }
+            (async () => {
+                try {
+                    const res = await fetch(`http://localhost:8000/containers/${savedCid}/urls`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json(); // { ws_url, vnc_url, cid }
+                    dispatch(setContainer({
+                        cid: data.cid,
+                        wsUrl: data.ws_url,
+                        vncUrl: data.vnc_url,
+                    }));
+                } catch (e) {
+                    console.error("복구 실패:", e);
+                    navigate("/", { replace: true });
+                }
+            })();
+        }
+    }, [isLoggedIn, current, token, navigate, dispatch]);
+
     // xterm + WebSocket 초기화
     useEffect(() => {
+        if (!isLoggedIn || !current?.wsUrl) return;
 
-        const term = new Terminal();
+        const term = new Terminal({
+            fontFamily: 'monospace, "MesloLGS NF", "Fira Code", "Consolas"',
+            fontSize: 14,
+            cursorBlink: true,
+            scrollback: 5000,
+            convertEol: true,
+            disableStdin: false,
+            allowProposedApi: true,
+        });
         const fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
 
         term.open(termRef.current);
-        fitAddon.fit();                // 최초 맞춤
+        fitAddon.fit();
+        term.write("\r\n🔧 xterm ready. Connecting...\r\n");
+        term.focus();
 
-        xtermRef.current = term;       // refs 저장
+        xtermRef.current = term;
         fitRef.current = fitAddon;
 
-        const onResize = () => fitAddon.fit();
+        const onResize = () => { try { fitAddon.fit(); } catch { } };
         window.addEventListener("resize", onResize);
 
-        const ws = new WebSocket("ws://localhost:8000/ws");
+        const ws = new WebSocket(current.wsUrl); // ws://.../ws?cid=...&sid=...
         socketRef.current = ws;
 
         ws.onopen = () => {
-            term.write("\r\n🟢 연결됨. 명령을 입력하세요.\r\n");
+            term.write("🟢 WebSocket connected.\r\n");
             term.onData((data) => ws.send(data));
         };
 
         ws.onmessage = (e) => {
-            // 서버에서 오는 첫 메시지는 {"sid": "..."} JSON
             try {
                 const msg = JSON.parse(e.data);
-                if (msg.sid) {
-                    setSid(msg.sid);                 // ✅ sid 저장
-                    return;                          // 터미널에 출력하지 않음
+                if (msg?.sid) {
+                    setSid(msg.sid);
+                    term.write(`(session: ${msg.sid})\r\n`);
+                    return;
                 }
-            } catch (e) {
-                console.error(e)
-                // JSON 아니면 터미널 출력(셸 출력)
-            }
+            } catch { }
             term.write(e.data);
         };
 
-        ws.onclose = () => term.write("\r\n🔴 연결 종료됨\r\n");
+        ws.onerror = (err) => {
+            console.error("[WS] error:", err);
+            term.write("\r\n🔴 WebSocket error. Check server logs / wsUrl.\r\n");
+        };
+
+        ws.onclose = async (ev) => {
+            term.write(`\r\n🔴 WebSocket closed (code=${ev.code}).\r\n`);
+            // 연결이 끊기면 최신 ws_url 재발급해서 갱신(선택)
+            if (current?.cid) {
+                try {
+                    const res = await fetch(`http://localhost:8000/containers/${current.cid}/urls`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        dispatch(updateContainerUrls({ wsUrl: data.ws_url, vncUrl: data.vnc_url }));
+                    }
+                } catch { }
+            }
+        };
 
         return () => {
-
             window.removeEventListener("resize", onResize);
-            try { ws.close(); } catch (e) {
-                console.error(e)
-            }
+            try { ws.close(); } catch { }
             term.dispose();
             xtermRef.current = null;
             fitRef.current = null;
-            xtermRef.current = null;
-            fitRef.current = null;
         };
-    }, [isLoggedIn]);
-
-
+    }, [isLoggedIn, current?.wsUrl, current?.cid, token, dispatch]);
 
     return (
         <div className="flex flex-col h-screen">
             <Header
                 sid={sid}
-                onRun={(u) => { setGuiVisible(true); setUrl(u); }}
-                code={code}
                 setMode={setMode}
-                mode={mode}
-                setUrl={setUrl}
+                onRun={(u) => { setGuiVisible(true); setUrl(u); }}
             />
             <div className="flex flex-1 overflow-hidden">
                 <div className="w-64 shrink-0">
                     <Sidebar />
                 </div>
 
-                <div className="w-1 bg-[#333] sidebar-resize" />
+                <div className="w-1 bg-[#333]" />
                 <div className="flex-1 flex flex-col min-h-0">
                     <FileTabs />
-                    {/* Editor 영역 */}
-                    <Editor setCode={setCode} />
-                    {/* 리사이저 바 */}
-                    <div className="h-1 bg-[#333] cursor-row-resize" onMouseDown={startResizing} />
-                    {/* 터미널 래퍼: 픽셀 높이만 주고, 내부는 100% 채움 */}
+                    <Editor />
+                    <div className="h-1 bg-[#333] cursor-row-resize" onMouseDown={() => setIsResizing(true)} />
                     <div style={{ height: `${terminalHeight}px` }} className="overflow-hidden">
-                        <TerminalApp mode={mode} termRef={termRef} />
+                        <TerminalApp termRef={termRef} />
                     </div>
+
+                    {!current?.wsUrl && (
+                        <div className="p-2 text-sm text-yellow-300 bg-yellow-900">
+                            WebSocket URL이 없어 연결을 대기 중입니다. 잠시만 기다려 주세요…
+                        </div>
+                    )}
                 </div>
             </div>
+
             {isGuiVisible && <GuiOverlay url={url} onClose={() => setGuiVisible(false)} />}
+            {isResizing && <div className="fixed inset-0 cursor-row-resize" onMouseUp={stopResizing} onMouseLeave={stopResizing} />}
         </div>
     );
 }

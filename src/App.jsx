@@ -1,6 +1,7 @@
 import MainPage from "./pages/MainPage";
 import IdePage from "./pages/IdePage";
 import { Route, Routes } from "react-router-dom";
+import LoginPage from "./pages/LoginPage";
 
 export default function App() {
 
@@ -9,6 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainPage />} />
         <Route path="/ide" element={<IdePage />} />
+        <Route path="/login" element={<LoginPage />} />
       </Routes>
     </>
   )
