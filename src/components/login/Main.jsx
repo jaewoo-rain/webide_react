@@ -73,7 +73,7 @@ export default function Main({ onLoginClick }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 201) {
-        const { ws_url, vnc_url, id, name, image, projectName } = res.data;
+        const { ws_url, vnc_url, id, name, image, projectName, port } = res.data;
         // 생성 직후 바로 접속 상태 저장
         dispatch(setContainer({
           cid: id,                // 12자리일 수도 있음 → IDE에서 풀ID로 재발급 받음
@@ -82,6 +82,7 @@ export default function Main({ onLoginClick }) {
           name,
           image,
           projectName,
+          port,
         }));
         setIsModalOpen(false);
         await loadProjects();
