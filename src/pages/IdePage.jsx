@@ -9,7 +9,10 @@ import GuiOverlay from "../components/ide/GuiOverlay";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { useNavigate } from "react-router-dom";
+// 👇 1. containerSlice에서 setContainer를 가져옵니다.
 import { setContainer, updateContainerUrls } from "../store/containerSlice";
+// 👇 2. fileSlice import는 제거하고 projectSlice만 남깁니다.
+import { setProjectStructure } from '../store/projectSlice';
 
 export default function IdePage() {
     const navigate = useNavigate();
@@ -72,6 +75,7 @@ export default function IdePage() {
                     });
                     if (!res.ok) throw new Error(await res.text());
                     const data = await res.json(); // { ws_url, vnc_url, cid }
+                    // 👇 3. [수정] containerSlice의 상태를 업데이트하도록 올바른 액션을 dispatch합니다.
                     dispatch(setContainer({
                         cid: data.cid,
                         wsUrl: data.ws_url,
@@ -161,6 +165,30 @@ export default function IdePage() {
             fitRef.current = null;
         };
     }, [isLoggedIn, current?.wsUrl, current?.cid, token, dispatch]);
+
+    // 파일 구조를 불러오는 useEffect 추가
+    useEffect(() => {
+        if (!current?.cid || !token) return;
+
+        const fetchFiles = async () => {
+            try {
+                const res = await fetch(`http://localhost:8000/files/${current.cid}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch files: ${res.statusText}`);
+                }
+                const data = await res.json(); // { tree, fileMap }
+                // 👇 4. [수정] projectSlice의 올바른 액션을 dispatch합니다. (기존 setFileStructure -> setProjectStructure)
+                dispatch(setProjectStructure(data));
+            } catch (error) {
+                console.error("파일 구조를 불러오는 데 실패했습니다:", error);
+                // 에러 처리 (예: 사용자에게 알림)
+            }
+        };
+
+        fetchFiles();
+    }, [current?.cid, token, dispatch]);
 
     return (
         <div className="flex flex-col h-screen">

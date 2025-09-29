@@ -6,26 +6,25 @@ let project = createSlice({
         tree: {
             id: "root",
             type: "folder",
-            children: [
-                { id: "1", type: "file" }, 
-                {id: "3", type: "folder"
-                    , children:[
-                            {id:"2", type:"file"}
-                        ]
-                },
-            ]
+            children: [] // 초기 상태 비워두기
         },
         fileMap: {
-            root: { name: "root", type: "folder" },
-            "1": { name: "main.py", content: "", type: "file" },
-            "2": {name: "utils.py", content: "", type: "file" },
-            "3": {name: "src", type: "folder"}
+            root: { name: "", type: "folder" } // 초기 상태 비워두기
         },
         isShow:{
             state: false,
-        }
+        },
+        isLoaded: false, // 로딩 상태 플래그 추가
     },
     reducers:{
+        // 서버 데이터로 상태를 설정하는 리듀서 추가
+        setProjectStructure(state, action) {
+            const { tree, fileMap } = action.payload;
+            state.tree = tree;
+            state.fileMap = fileMap;
+            state.isLoaded = true; // 로딩 완료로 상태 변경
+        },
+
         addFile(state, action) {
             let { fileName, parentId } = action.payload;
             if (!fileName || fileName.trim() === "") return;
@@ -116,7 +115,7 @@ function findNode(current, targetId){
     return null;
 }
 
-export let {addFile, addFolder, setCode, changeState} = project.actions
+export let {addFile, addFolder, setCode, changeState, setProjectStructure} = project.actions
 export default project
 
 /**

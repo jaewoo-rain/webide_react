@@ -6,16 +6,23 @@ export default function Header({ onRun, setMode, sid }) {
   const navigate = useNavigate();
 
   // 🔹 프로젝트/컨테이너/파일 상태
-  const state = useSelector((s) => s);
-  const currentPageId = state.openPage.current;
-  const code = state.project.fileMap[currentPageId]?.content || "";
+  const { tree, fileMap } = useSelector((state) => state.project);
+  const currentPageId = useSelector((state) => state.openPage.current);
+  const currentContainer = useSelector((state) => state.container.current);
 
-  // 🔹 컨테이너 정보는 Redux에서 직접
-  const currentContainer = useSelector((s) => s.container.current);
   const cid = currentContainer?.cid;        // 풀 컨테이너 ID
   const vncUrl = currentContainer?.vncUrl;  // GUI 열 때 사용
 
+  // 현재 페이지의 코드 내용은 fileMap과 currentPageId를 조합하여 가져옵니다.
+  const code = fileMap[currentPageId]?.content || "";
+
   const runCode = async () => {
+    // ✅ 2. 실행 파일 유효성 검사: API 호출 전에 실행할 파일이 있는지 확인합니다.
+    if (!currentPageId) {
+      alert("실행할 파일을 먼저 선택하거나 열어주세요.");
+      return; // API 호출을 막습니다.
+    }
+
     if (!sid) {
       alert("WS 세션이 아직 준비되지 않았습니다.");
       return;
@@ -31,8 +38,8 @@ export default function Header({ onRun, setMode, sid }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code,
-          tree: state.project.tree,
-          fileMap: state.project.fileMap,
+          tree: tree,         // 최적화된 selector에서 가져온 값 사용
+          fileMap: fileMap,   // 최적화된 selector에서 가져온 값 사용
           run_code: currentPageId,
           session_id: sid,     // WS에서 받은 sid
           container_id: cid,   // ✅ 반드시 함께 전송
@@ -40,8 +47,8 @@ export default function Header({ onRun, setMode, sid }) {
       });
 
       if (!res.ok) {
-        const err = await res.text();
-        console.error("RUN failed:", res.status, err);
+        const errData = await res.json(); // 👈 .text() 대신 .json()으로 받아 상세 에러 확인
+        console.error("RUN failed:", res.status, errData);
         alert(`실행 실패 (${res.status})`);
         return;
       }
