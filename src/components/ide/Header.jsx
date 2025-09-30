@@ -2,7 +2,7 @@ import React from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-export default function Header({ onRun, setMode, sid }) {
+export default function Header({ onRun, setMode, sid, onSave }) {
   const navigate = useNavigate();
 
   // 🔹 프로젝트/컨테이너/파일 상태
@@ -91,7 +91,7 @@ export default function Header({ onRun, setMode, sid }) {
       <div className="flex items-center space-x-2">
         <button
           onClick={runCode}
-          disabled={!sid || !cid}     // 🔸 sid, cid 준비되면 버튼 활성
+          disabled={!sid || !cid}
           className="flex items-center bg-primary hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap disabled:opacity-50"
         >
           <div className="w-5 h-5 flex items-center justify-center mr-1">
@@ -101,13 +101,14 @@ export default function Header({ onRun, setMode, sid }) {
         </button>
 
         <button
-          onClick={() => console.log("중지버튼 클릭")}
-          className="flex items-center bg-[#3C3C3C] hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap"
+          onClick={onSave}
+          disabled={!sid || !cid}
+          className="flex items-center bg-[#3C3C3C] hover:bg-opacity-80 text-white px-3 py-1.5 rounded-button whitespace-nowrap disabled:opacity-50"
         >
           <div className="w-5 h-5 flex items-center justify-center mr-1">
-            <i className="ri-stop-fill" />
+            <i className="ri-save-line" />
           </div>
-          <span>중지</span>
+          <span>저장</span>
         </button>
 
         <button

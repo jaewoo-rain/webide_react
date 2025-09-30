@@ -21,6 +21,9 @@ export default function IdePage() {
     const token = useSelector((s) => s.user.token);
     const isLoggedIn = !!token;
     const current = useSelector((s) => s.container.current); // {cid, wsUrl, vncUrl, ...}
+    const { tree, fileMap } = useSelector((state) => state.project);
+    const activeFileId = useSelector((state) => state.openPage.current);
+
 
     const [sid, setSid] = useState(null);
     const [isGuiVisible, setGuiVisible] = useState(false);
@@ -190,12 +193,52 @@ export default function IdePage() {
         fetchFiles();
     }, [current?.cid, token, dispatch]);
 
+    const handleSave = async () => {
+        if (!current?.cid) {
+            alert("컨테이너 정보를 찾을 수 없습니다.");
+            return;
+        }
+
+        const code = fileMap[activeFileId]?.content || "";
+
+        try {
+            const res = await fetch("http://localhost:8000/save", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    code, // 현재 파일 내용 추가
+                    tree,
+                    fileMap,
+                    run_code: activeFileId,
+                    container_id: current.cid,
+                }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                console.error("Save failed:", res.status, errData);
+                alert(`저장 실패 (${res.status}): ${errData.detail || '알 수 없는 오류'}`);
+                return;
+            }
+
+            alert("코드가 성공적으로 저장되었습니다.");
+
+        } catch (e) {
+            console.error(e);
+            alert("저장 요청 중 오류가 발생했습니다.");
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen">
             <Header
                 sid={sid}
                 setMode={setMode}
                 onRun={(u) => { setGuiVisible(true); setUrl(u); }}
+                onSave={handleSave}
             />
             <div className="flex flex-1 overflow-hidden">
                 <div className="w-64 shrink-0">
