@@ -1,3 +1,4 @@
+import { nanoid } from '@reduxjs/toolkit';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { newPageOpen } from '../../store/openPageSlice';
@@ -47,7 +48,9 @@ export default function Sidebar() {
       const value = inputValue.trim();
       if (value !== "") {
         if (type === "file") {
-          dispatch(addFile({ fileName: value, parentId: "root" }));
+          const newId = nanoid();
+          dispatch(addFile({ fileName: value, parentId: "root", newId }));
+          dispatch(newPageOpen(newId));
         } else if (type === "folder") {
           dispatch(addFolder({ folderName: value, parentId: "root" }));
         }

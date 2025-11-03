@@ -1,4 +1,33 @@
-import { createSlice, nanoid } from "@reduxjs/toolkit";
+import { createSlice, nanoid, createAsyncThunk } from "@reduxjs/toolkit";
+import { newPageOpen } from "./openPageSlice";
+
+export const initializeProject = createAsyncThunk(
+    'project/initialize',
+    async ({ cid, token }, { dispatch }) => {
+        const res = await fetch(`http://localhost:8000/files/${cid}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+            throw new Error(`Failed to fetch files: ${res.statusText}`);
+        }
+        const data = await res.json();
+        dispatch(setProjectStructure(data));
+
+        const { fileMap } = data;
+        if (Object.keys(fileMap).length > 1) {
+            const lastOpenFileId = localStorage.getItem("lastOpenFileId");
+            if (lastOpenFileId && fileMap[lastOpenFileId]) {
+                dispatch(newPageOpen(lastOpenFileId));
+            } else {
+                const firstFile = Object.keys(fileMap).find(fileId => fileId !== 'root' && fileMap[fileId].type === 'file');
+                if (firstFile) {
+                    dispatch(newPageOpen(firstFile));
+                }
+            }
+        }
+        return data;
+    }
+);
 
 let project = createSlice({
     name: "project",
@@ -26,7 +55,7 @@ let project = createSlice({
         },
 
         addFile(state, action) {
-            let { fileName, parentId } = action.payload;
+            let { fileName, parentId, newId } = action.payload;
             if (!fileName || fileName.trim() === "") return;
 
             // ✅ 동일 폴더 내 이름 중복 방지
@@ -35,7 +64,6 @@ let project = createSlice({
                 return;
             }
 
-            const newId = nanoid();
             state.fileMap[newId] = { name: fileName, content: "", type: "file" };
 
             const parentNode = findNode(state.tree, parentId);
@@ -73,9 +101,9 @@ let project = createSlice({
         changeState(state){
             state.isShow.state = !state.isShow.state;
         }
-        // 파일 & 폴더 삭제
-        // 파일 & 폴더 이름 바꾸기
-        // 코드 수정
+        // todo:파일 & 폴더 삭제
+        // todo:파일 & 폴더 이름 바꾸기
+        // todo:코드 수정
 
     }
 })

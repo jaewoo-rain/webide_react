@@ -12,7 +12,8 @@ import { useNavigate } from "react-router-dom";
 // 👇 1. containerSlice에서 setContainer를 가져옵니다.
 import { setContainer, updateContainerUrls } from "../store/containerSlice";
 // 👇 2. fileSlice import는 제거하고 projectSlice만 남깁니다.
-import { setProjectStructure } from '../store/projectSlice';
+import { setProjectStructure, initializeProject } from '../store/projectSlice';
+import { newPageOpen } from "../store/openPageSlice";
 
 export default function IdePage() {
     const navigate = useNavigate();
@@ -23,6 +24,7 @@ export default function IdePage() {
     const current = useSelector((s) => s.container.current); // {cid, wsUrl, vncUrl, ...}
     const { tree, fileMap } = useSelector((state) => state.project);
     const activeFileId = useSelector((state) => state.openPage.current);
+    const openPage = useSelector((state) => state.openPage);
 
 
     const [sid, setSid] = useState(null);
@@ -169,29 +171,17 @@ export default function IdePage() {
         };
     }, [isLoggedIn, current?.wsUrl, current?.cid, token, dispatch]);
 
-    // 파일 구조를 불러오는 useEffect 추가
     useEffect(() => {
-        if (!current?.cid || !token) return;
-
-        const fetchFiles = async () => {
-            try {
-                const res = await fetch(`http://localhost:8000/files/${current.cid}`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) {
-                    throw new Error(`Failed to fetch files: ${res.statusText}`);
-                }
-                const data = await res.json(); // { tree, fileMap }
-                // 👇 4. [수정] projectSlice의 올바른 액션을 dispatch합니다. (기존 setFileStructure -> setProjectStructure)
-                dispatch(setProjectStructure(data));
-            } catch (error) {
-                console.error("파일 구조를 불러오는 데 실패했습니다:", error);
-                // 에러 처리 (예: 사용자에게 알림)
-            }
-        };
-
-        fetchFiles();
+        if (current?.cid && token) {
+            dispatch(initializeProject({ cid: current.cid, token }));
+        }
     }, [current?.cid, token, dispatch]);
+
+    useEffect(() => {
+        if (activeFileId) {
+            localStorage.setItem("lastOpenFileId", activeFileId);
+        }
+    }, [activeFileId]);
 
     const handleSave = async () => {
         if (!current?.cid) {
@@ -247,8 +237,16 @@ export default function IdePage() {
 
                 <div className="w-1 bg-[#333]" />
                 <div className="flex-1 flex flex-col min-h-0">
-                    <FileTabs />
-                    <Editor />
+                    {Object.keys(fileMap).length > 1 ? (
+                        <>
+                            <FileTabs />
+                            <Editor />
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center bg-[#1E1E1E] text-gray-500">
+                            <p>프로젝트가 비어있습니다.</p>
+                        </div>
+                    )}
                     <div className="h-1 bg-[#333] cursor-row-resize" onMouseDown={() => setIsResizing(true)} />
                     <div style={{ height: `${terminalHeight}px` }} className="overflow-hidden">
                         <TerminalApp termRef={termRef} />

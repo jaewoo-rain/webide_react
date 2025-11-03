@@ -2,7 +2,7 @@ import { createSlice } from '@reduxjs/toolkit'
 
 let openPageSlice = createSlice({
     name: "openPage",
-    initialState: {current: "1", open: ["1"]},
+    initialState: {current: null, open: []},
     reducers:{
         setCurrentPage(state, action){
             let pageId = action.payload;
@@ -22,7 +22,7 @@ let openPageSlice = createSlice({
             let pageId = action.payload;
             state.open = state.open.filter(page => page !== pageId);
             if(state.current == pageId){
-                state.current = state.open[0];
+                state.current = state.open.length > 0 ? state.open[0] : null;
             }
         }
     }

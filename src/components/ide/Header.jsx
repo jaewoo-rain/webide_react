@@ -19,7 +19,7 @@ export default function Header({ onRun, setMode, sid, onSave }) {
   const runCode = async () => {
     // ✅ 2. 실행 파일 유효성 검사: API 호출 전에 실행할 파일이 있는지 확인합니다.
     if (!currentPageId) {
-      alert("실행할 파일을 먼저 선택하거나 열어주세요.");
+      alert("프로젝트가 비어있습니다.");
       return; // API 호출을 막습니다.
     }
 
