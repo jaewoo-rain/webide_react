@@ -1,35 +1,67 @@
 import { nanoid } from '@reduxjs/toolkit';
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { newPageOpen } from '../../store/openPageSlice';
-import { addFile, addFolder, changeState } from '../../store/projectSlice';
+import { closePage, newPageOpen } from '../../store/openPageSlice';
+import { addFile, addFolder, changeState, deleteFile, renameNode, updateNodePath } from '../../store/projectSlice';
 
 export default function Sidebar() {
-
-  // let project = useSelector((state) => { return state.project });
-  // let openPage = useSelector((state) => { return state.openPage });
-  // let isShow = project.isShow.state;
-  // console.log(isShow);
-  // console.log(project)
-
-  // ✅ 1. isLoaded와 isShow 상태를 project에서 직접 가져옵니다.
   const { tree, fileMap, isLoaded, isShow } = useSelector((state) => state.project);
   const openPage = useSelector((state) => state.openPage);
+  const containerId = useSelector((state) => state.container.current?.cid);
   const dispatch = useDispatch();
 
-  // 👇 isShow.state를 직접 사용합니다.
   const isInputVisible = isShow.state;
-
   const inputRef = useRef(null);
   const [inputValue, setInputValue] = useState("");
   const [type, setType] = useState("");
+  const [showDelete, setShowDelete] = useState(null);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
 
-  // 👇 isInputVisible을 의존성 배열에 추가합니다.
   useEffect(() => {
     if (isInputVisible && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isInputVisible]);
+
+  const handleRename = async (nodeId) => {
+    const newName = renameValue.trim();
+    if (newName === "") {
+      setRenamingId(null);
+      return;
+    }
+
+    const oldPath = fileMap[nodeId]?.path;
+    if (!containerId || !oldPath) {
+      console.error("Cannot rename: containerId or oldPath is missing.");
+      setRenamingId(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/files/${containerId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ old_path: oldPath, new_name: newName }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        dispatch(renameNode({ nodeId, newName }));
+        dispatch(updateNodePath({ nodeId, newPath: data.new_path }));
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to rename file on server:", errorData.detail);
+      }
+    } catch (error) {
+      console.error("An error occurred during rename fetch:", error);
+    }
+
+    setRenamingId(null);
+    setRenameValue("");
+  };
 
   // 외부 클릭 시 input 감추기
   useEffect(() => {
@@ -60,54 +92,189 @@ export default function Sidebar() {
     }
   };
 
+  const handleDelete = async (node) => {
+    if (!containerId) {
+      console.error("Container ID is not available.");
+      return;
+    }
 
-  // let tree = project.tree.children;
-  // let fileMap = project.fileMap;
-  // let dispatch = useDispatch();
+    const filePath = fileMap[node.id]?.path;
+    if (!filePath) {
+      console.error("File path not found.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/files/${containerId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_path: filePath }),
+      });
+
+      if (response.ok) {
+        if (openPage.current === node.id) {
+          dispatch(closePage(node.id));
+        }
+        dispatch(deleteFile(node.id));
+        setShowDelete(null);
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to delete file on server:", errorData.detail);
+      }
+    } catch (error) {
+      console.error("An error occurred during fetch:", error);
+    }
+  };
 
   let renderNode = function (node) {
-    let data = fileMap[node.id]
-    let currentFileId = openPage.current
-    if (!data) { return null };
+    let data = fileMap[node.id];
+    let currentFileId = openPage.current;
+    if (!data) { return null; }
 
-    if (node.type == "folder") {
+    const handleMoreClick = (e, nodeId) => {
+      e.stopPropagation();
+      setShowDelete(showDelete === nodeId ? null : nodeId);
+    };
+
+    const isRenaming = renamingId === node.id;
+
+    if (node.type === "folder") {
       return (
         <div key={node.id} className="ml-2">
-          <div className="flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer">
-            <div className="w-4 h-4 flex items-center justify-center mr-1">
-              <i className="ri-folder-open-line text-[#CCCC29]"></i>
+          <div className="flex items-center justify-between py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer">
+            <div className="flex items-center">
+              <div className="w-4 h-4 flex items-center justify-center mr-1">
+                <i className="ri-folder-open-line text-[#CCCC29]"></i>
+              </div>
+              {isRenaming ? (
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRename(node.id)}
+                  onBlur={() => setRenamingId(null)}
+                  className="bg-[#3C3C3C] text-white px-1 rounded border border-transparent focus:border-blue-500 outline-none"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <span>{data.name}</span>
+              )}
             </div>
-            <span>{data.name}</span>
+            <div className="flex items-center">
+              {showDelete === node.id ? (
+                <div className="flex items-center space-x-2">
+                  <button
+                    className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingId(node.id);
+                      setRenameValue(data.name);
+                      setShowDelete(null);
+                    }}
+                  >
+                    수정
+                  </button>
+                  <button
+                    className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(node);
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="text-gray-400 hover:text-white"
+                  onClick={(e) => handleMoreClick(e, node.id)}
+                >
+                  ...
+                </button>
+              )}
+            </div>
           </div>
           <div className="ml-4">
             {node.children?.map((child) => renderNode(child))}
           </div>
         </div>
       );
-    } else if (node.type == "file") {
+    } else if (node.type === "file") {
       return (
         <div
           key={node.id}
-          onClick={() => dispatch(newPageOpen(node.id))} // 오픈된 파일
-          className={`flex items-center py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer ${currentFileId === node.id ? "bg-[#37373D]" : ""
-            }`}
+          onClick={(e) => {
+            if (!isRenaming) {
+              dispatch(newPageOpen(node.id));
+            }
+            setShowDelete(null);
+          }}
+          className={`flex items-center justify-between py-1 px-2 hover:bg-[#37373D] rounded cursor-pointer ${currentFileId === node.id ? "bg-[#37373D]" : ""}`}
         >
-          <div className="w-4 h-4 flex items-center justify-center mr-1">
-            <i className={`ri-${data.name.endsWith('.md') ? 'markdown-line' : 'file-code-line'} text-[#519ABA]`}></i>
+          <div className="flex items-center">
+            <div className="w-4 h-4 flex items-center justify-center mr-1">
+              <i className={`ri-${data.name.endsWith('.md') ? 'markdown-line' : 'file-code-line'} text-[#519ABA]`}></i>
+            </div>
+            {isRenaming ? (
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleRename(node.id)}
+                onBlur={() => setRenamingId(null)}
+                className="bg-[#3C3C3C] text-white px-1 rounded border border-transparent focus:border-blue-500 outline-none"
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span>{data.name}</span>
+            )}
           </div>
-          <span>{data.name}</span>
+          <div className="flex items-center">
+            {showDelete === node.id ? (
+              <div className="flex items-center space-x-2">
+                <button
+                  className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRenamingId(node.id);
+                    setRenameValue(data.name);
+                    setShowDelete(null);
+                  }}
+                >
+                  수정
+                </button>
+                <button
+                  className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(node);
+                  }}
+                >
+                  삭제
+                </button>
+              </div>
+            ) : (
+              <button
+                className="text-gray-400 hover:text-white"
+                onClick={(e) => handleMoreClick(e, node.id)}
+              >
+                ...
+              </button>
+            )}
+          </div>
         </div>
       );
     }
     return null;
-  }
+  };
 
-  //3. isLoaded 플래그로 로딩 상태를 처리합니다.
   if (!isLoaded) {
     return (
-        <div className="w-64 bg-[#252526] border-r border-[#333] p-4 text-gray-400">
-          프로젝트 파일을 불러오는 중...
-        </div>
+      <div className="w-64 bg-[#252526] border-r border-[#333] p-4 text-gray-400">
+        프로젝트 파일을 불러오는 중...
+      </div>
     );
   }
 

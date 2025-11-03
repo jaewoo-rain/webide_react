@@ -100,6 +100,31 @@ let project = createSlice({
         // 파일 추가 시 이름 지정하는 필드 보여주기
         changeState(state){
             state.isShow.state = !state.isShow.state;
+        },
+        deleteFile(state, action) {
+            const fileIdToDelete = action.payload;
+            if (!fileIdToDelete || !state.fileMap[fileIdToDelete]) return;
+
+            // 부모 노드 찾기 및 children 배열에서 삭제
+            const parentNode = findParentNode(state.tree, fileIdToDelete);
+            if (parentNode && parentNode.children) {
+                parentNode.children = parentNode.children.filter(child => child.id !== fileIdToDelete);
+            }
+
+            // fileMap에서 삭제
+            delete state.fileMap[fileIdToDelete];
+        },
+        renameNode(state, action) {
+            const { nodeId, newName } = action.payload;
+            if (state.fileMap[nodeId]) {
+                state.fileMap[nodeId].name = newName;
+            }
+        },
+        updateNodePath(state, action) {
+            const { nodeId, newPath } = action.payload;
+            if (state.fileMap[nodeId]) {
+                state.fileMap[nodeId].path = newPath;
+            }
         }
         // todo:파일 & 폴더 삭제
         // todo:파일 & 폴더 이름 바꾸기
@@ -143,7 +168,22 @@ function findNode(current, targetId){
     return null;
 }
 
-export let {addFile, addFolder, setCode, changeState, setProjectStructure} = project.actions
+function findParentNode(current, targetId) {
+    if (current.children) {
+        for (const child of current.children) {
+            if (child.id === targetId) {
+                return current;
+            }
+            const found = findParentNode(child, targetId);
+            if (found) {
+                return found;
+            }
+        }
+    }
+    return null;
+}
+
+export let {addFile, addFolder, setCode, changeState, setProjectStructure, deleteFile, renameNode, updateNodePath} = project.actions
 export default project
 
 /**
