@@ -1,4 +1,35 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
+
+export const loadProjects = createAsyncThunk(
+    'container/loadProjects',
+    async (_, { getState }) => {
+        const { token } = getState().user;
+        if (!token) return [];
+        const res = await axios.get(`http://localhost:8000/containers/my`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const projects = res.data || [];
+
+        // Enrich each project with its fullCid
+        const enrichedProjects = await Promise.all(projects.map(async (p) => {
+            try {
+                const shortCid = p.containerId || p.containerName || p.id;
+                const urlsRes = await axios.get(`http://localhost:8000/containers/${shortCid}/urls`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                return { ...p, fullCid: urlsRes.data.cid };
+            } catch (e) {
+                console.error(`Failed to get fullCid for ${p.projectName}`, e);
+                return { ...p, fullCid: null }; // Mark as failed
+            }
+        }));
+
+        return enrichedProjects.filter(p => p.fullCid); // Return only successful ones
+    }
+);
+
+// ... (rest of the slice is the same)
 
 // 새로고침 복구용: localStorage에 현재 컨테이너 저장
 const persisted = (() => {
@@ -41,8 +72,18 @@ const slice = createSlice({
         setProjects(state, action) {
             state.projects = Array.isArray(action.payload) ? action.payload : [];
         },
+        resetCurrentContainer(state) {
+            state.current = null;
+            localStorage.removeItem("container.current");
+            sessionStorage.removeItem("lastCid");
+        }
+    },
+    extraReducers: (builder) => {
+        builder.addCase(loadProjects.fulfilled, (state, action) => {
+            state.projects = action.payload;
+        });
     },
 });
 
-export const { setContainer, updateContainerUrls, clearContainer, setProjects } = slice.actions;
+export const { setContainer, updateContainerUrls, clearContainer, setProjects, resetCurrentContainer } = slice.actions;
 export default slice.reducer;

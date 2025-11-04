@@ -125,6 +125,11 @@ let project = createSlice({
             if (state.fileMap[nodeId]) {
                 state.fileMap[nodeId].path = newPath;
             }
+        },
+        resetProject(state) {
+            state.tree = { id: "root", type: "folder", children: [] };
+            state.fileMap = { root: { name: "", type: "folder" } };
+            state.isLoaded = false;
         }
         // todo:파일 & 폴더 삭제
         // todo:파일 & 폴더 이름 바꾸기
@@ -183,7 +188,7 @@ function findParentNode(current, targetId) {
     return null;
 }
 
-export let {addFile, addFolder, setCode, changeState, setProjectStructure, deleteFile, renameNode, updateNodePath} = project.actions
+export let {addFile, addFolder, setCode, changeState, setProjectStructure, deleteFile, renameNode, updateNodePath, resetProject} = project.actions
 export default project
 
 /**

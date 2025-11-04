@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { clearAuth } from "../../store/userSlice";
-import { setProjects, setContainer } from "../../store/containerSlice";
+import { loadProjects, setContainer } from "../../store/containerSlice";
 import CreateProjectModal from "./CreateProjectModal";
 import { useNavigate } from "react-router-dom";
 
@@ -14,50 +14,37 @@ export default function Main({ onLoginClick }) {
   const isLoggedIn = !!token;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Restored loading state
 
   const apiBase = "http://localhost:8000";
 
-  // 목록 로드
-  const loadProjects = async () => {
-    if (!token) return;
-    setLoading(true);
-    try {
-      const res = await axios.get(`${apiBase}/containers/my`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      dispatch(setProjects(res.data || []));
-    } catch (err) {
-      console.error("프로젝트 목록 실패:", err?.response || err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+    if (token) {
+      setLoading(true);
+      dispatch(loadProjects()).finally(() => setLoading(false));
+    }
+  }, [token, dispatch]);
 
   // 기존 컨테이너 재접속
   const openExisting = async (p) => {
     try {
       if (!token) return alert("로그인이 필요합니다.");
-      const cid = p.containerName || p.id || p.container_id || p.name;
-      if (!cid) return alert("컨테이너 ID를 찾을 수 없습니다.");
-      const res = await axios.get(`${apiBase}/containers/${cid}/urls`, {
+      if (!p.fullCid) return alert("프로젝트 ID를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.");
+      
+      const res = await axios.get(`${apiBase}/containers/${p.fullCid}/urls`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const { ws_url, vnc_url, cid: fullCid } = res.data;
+
+      const { ws_url, vnc_url, cid } = res.data;
       dispatch(setContainer({
-        cid: fullCid,
+        cid: cid, // fullCid from urls response
         wsUrl: ws_url,
         vncUrl: vnc_url,
-        name: p.projectName || p.containerName || p.name,
+        name: p.projectName || p.name,
         image: p.imageName || p.image,
         projectName: p.projectName,
       }));
-      navigate("/ide"); // 파라미터 대신 리덕스로
+      navigate(`/ide/${cid}`);
     } catch (e) {
       console.error("재접속 실패:", e?.response || e);
       alert(e?.response?.data?.detail || "재접속 중 오류가 발생했습니다.");
@@ -73,20 +60,11 @@ export default function Main({ onLoginClick }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 201) {
-        const { ws_url, vnc_url, id, name, image, projectName, port } = res.data;
-        // 생성 직후 바로 접속 상태 저장
-        dispatch(setContainer({
-          cid: id,                // 12자리일 수도 있음 → IDE에서 풀ID로 재발급 받음
-          wsUrl: ws_url,
-          vncUrl: vnc_url,
-          name,
-          image,
-          projectName,
-          port,
-        }));
+        const { id } = res.data;
         setIsModalOpen(false);
-        await loadProjects();
-        navigate("/ide");
+        await dispatch(loadProjects());
+        // After creation, navigate to the new project's IDE page
+        navigate(`/ide/${id}`);
       }
     } catch (error) {
       console.error("프로젝트 생성 실패:", error?.response || error);
@@ -141,12 +119,12 @@ export default function Main({ onLoginClick }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((p) => (
               <div
-                key={p.containerId || p.containerName || p.name}
+                key={p.fullCid || p.id}
                 className="bg-gray-700 p-6 rounded-lg shadow-lg hover:bg-gray-600 transition-colors duration-300 cursor-pointer flex flex-col justify-between text-left"
                 onClick={() => openExisting(p)}
               >
                 <div>
-                  <h3 className="text-2xl font-bold mb-2">{p.projectName || p.containerName || p.name}</h3>
+                  <h3 className="text-2xl font-bold mb-2">{p.projectName || p.name}</h3>
                   <span className="inline-block bg-gray-500 text-white text-sm font-semibold px-3 py-1 rounded-full mb-4">
                     {p.language || p.imageName || p.image || "-"}
                   </span>

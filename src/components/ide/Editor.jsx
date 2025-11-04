@@ -19,9 +19,8 @@ export default function Editor() {
   const docsRef = useRef(new Map());        // fileId -> CodeMirror.Doc
   const changeHandlerRef = useRef(null);    // 현재 등록된 change 핸들러
 
-  const state = useSelector((s) => s);
-  const files = state.project.fileMap;
-  const currentPageId = state.openPage.current;
+  const files = useSelector((s) => s.project.fileMap);
+  const currentPageId = useSelector((s) => s.openPage.current);
   const dispatch = useDispatch();
 
 

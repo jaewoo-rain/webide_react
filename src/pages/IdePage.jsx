@@ -8,24 +8,19 @@ import TerminalApp from "../components/ide/Terminal";
 import GuiOverlay from "../components/ide/GuiOverlay";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
-import { useNavigate } from "react-router-dom";
-// 👇 1. containerSlice에서 setContainer를 가져옵니다.
-import { setContainer, updateContainerUrls } from "../store/containerSlice";
-// 👇 2. fileSlice import는 제거하고 projectSlice만 남깁니다.
-import { setProjectStructure, initializeProject } from '../store/projectSlice';
-import { newPageOpen } from "../store/openPageSlice";
+import { useNavigate, useParams } from "react-router-dom";
+import { setContainer, updateContainerUrls, loadProjects, resetCurrentContainer } from "../store/containerSlice";
+import { initializeProject, resetProject } from '../store/projectSlice';
 
 export default function IdePage() {
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const { cid: cidFromUrl } = useParams();
 
     const token = useSelector((s) => s.user.token);
     const isLoggedIn = !!token;
-    const current = useSelector((s) => s.container.current); // {cid, wsUrl, vncUrl, ...}
-    const { tree, fileMap } = useSelector((state) => state.project);
-    const activeFileId = useSelector((state) => state.openPage.current);
-    const openPage = useSelector((state) => state.openPage);
-
+    const { current, projects } = useSelector((s) => s.container);
+    const { isLoaded } = useSelector((state) => state.project);
 
     const [sid, setSid] = useState(null);
     const [isGuiVisible, setGuiVisible] = useState(false);
@@ -35,9 +30,54 @@ export default function IdePage() {
     const [url, setUrl] = useState("");
 
     const termRef = useRef(null);
-    const xtermRef = useRef(null);
     const fitRef = useRef(null);
-    const socketRef = useRef(null);
+
+    // Load projects if not already loaded
+    useEffect(() => {
+        if (isLoggedIn && projects.length === 0) {
+            dispatch(loadProjects());
+        }
+    }, [isLoggedIn, projects.length, dispatch]);
+
+    // Set container based on URL
+    useEffect(() => {
+        if (!isLoggedIn || !cidFromUrl) return;
+
+        // If current container in state doesn't match the one in the URL, reset and fetch.
+        if (current?.cid !== cidFromUrl) {
+            // Reset states for the new project
+            dispatch(resetCurrentContainer());
+            dispatch(resetProject());
+
+            (async () => {
+                try {
+                    const res = await fetch(`http://localhost:8000/containers/${cidFromUrl}/urls`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json();
+
+                    dispatch(setContainer({
+                        cid: data.cid,
+                        wsUrl: data.ws_url,
+                        vncUrl: data.vnc_url,
+                    }));
+                } catch (e) {
+                    console.error("컨테이너 정보 로드 실패:", e);
+                    alert("프로젝트를 불러오는 데 실패했습니다. 목록으로 돌아갑니다.");
+                    navigate("/");
+                }
+            })();
+        }
+    }, [isLoggedIn, cidFromUrl, current, token, navigate, dispatch]);
+
+    // Initialize project files when container is set
+    useEffect(() => {
+        if (current?.cid && token && !isLoaded) {
+            dispatch(initializeProject({ cid: current.cid, token }));
+        }
+    }, [current?.cid, token, isLoaded, dispatch]);
+
 
     const startResizing = () => setIsResizing(true);
     const stopResizing = () => setIsResizing(false);
@@ -60,73 +100,33 @@ export default function IdePage() {
         };
     }, [isResizing]);
 
-    // 로그인/접속 정보 체크
-    useEffect(() => {
-        if (!isLoggedIn) {
-            navigate("/login", { replace: true });
-            return;
-        }
-        if (!current) {
-            // 새로고침 복구: lastCid 기반으로 ws_url 재발급
-            const savedCid = sessionStorage.getItem("lastCid");
-            if (!savedCid) {
-                navigate("/", { replace: true });
-                return;
-            }
-            (async () => {
-                try {
-                    const res = await fetch(`http://localhost:8000/containers/${savedCid}/urls`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    if (!res.ok) throw new Error(await res.text());
-                    const data = await res.json(); // { ws_url, vnc_url, cid }
-                    // 👇 3. [수정] containerSlice의 상태를 업데이트하도록 올바른 액션을 dispatch합니다.
-                    dispatch(setContainer({
-                        cid: data.cid,
-                        wsUrl: data.ws_url,
-                        vncUrl: data.vnc_url,
-                    }));
-                } catch (e) {
-                    console.error("복구 실패:", e);
-                    navigate("/", { replace: true });
-                }
-            })();
-        }
-    }, [isLoggedIn, current, token, navigate, dispatch]);
 
     // xterm + WebSocket 초기화
     useEffect(() => {
-        if (!isLoggedIn || !current?.wsUrl) return;
+        if (!current?.wsUrl) return;
 
-        const term = new Terminal({
+        let term = new Terminal({
             fontFamily: 'monospace, "MesloLGS NF", "Fira Code", "Consolas"',
             fontSize: 14,
             cursorBlink: true,
             scrollback: 5000,
             convertEol: true,
-            disableStdin: false,
-            allowProposedApi: true,
         });
         const fitAddon = new FitAddon();
         term.loadAddon(fitAddon);
+        fitRef.current = fitAddon;
 
         term.open(termRef.current);
         fitAddon.fit();
         term.write("\r\n🔧 xterm ready. Connecting...\r\n");
-        term.focus();
 
-        xtermRef.current = term;
-        fitRef.current = fitAddon;
-
-        const onResize = () => { try { fitAddon.fit(); } catch { } };
-        window.addEventListener("resize", onResize);
-
-        const ws = new WebSocket(current.wsUrl); // ws://.../ws?cid=...&sid=...
-        socketRef.current = ws;
+        const ws = new WebSocket(current.wsUrl);
 
         ws.onopen = () => {
-            term.write("🟢 WebSocket connected.\r\n");
-            term.onData((data) => ws.send(data));
+            if (term) {
+                term.write("🟢 WebSocket connected.\r\n");
+                term.onData((data) => ws.send(data));
+            }
         };
 
         ws.onmessage = (e) => {
@@ -134,55 +134,35 @@ export default function IdePage() {
                 const msg = JSON.parse(e.data);
                 if (msg?.sid) {
                     setSid(msg.sid);
-                    term.write(`(session: ${msg.sid})\r\n`);
+                    if (term) term.write(`(session: ${msg.sid})\r\n`);
                     return;
                 }
             } catch { }
-            term.write(e.data);
+            if (term) term.write(e.data);
         };
 
         ws.onerror = (err) => {
             console.error("[WS] error:", err);
-            term.write("\r\n🔴 WebSocket error. Check server logs / wsUrl.\r\n");
+            if (term) term.write("\r\n🔴 WebSocket error. Check server logs / wsUrl.\r\n");
         };
 
-        ws.onclose = async (ev) => {
-            term.write(`\r\n🔴 WebSocket closed (code=${ev.code}).\r\n`);
-            // 연결이 끊기면 최신 ws_url 재발급해서 갱신(선택)
-            if (current?.cid) {
-                try {
-                    const res = await fetch(`http://localhost:8000/containers/${current.cid}/urls`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        dispatch(updateContainerUrls({ wsUrl: data.ws_url, vncUrl: data.vnc_url }));
-                    }
-                } catch { }
-            }
-        };
+        const onResize = () => fitAddon.fit();
+        window.addEventListener("resize", onResize);
 
         return () => {
             window.removeEventListener("resize", onResize);
-            try { ws.close(); } catch { }
-            term.dispose();
-            xtermRef.current = null;
-            fitRef.current = null;
+            ws.close();
+            if (term) {
+                term.dispose();
+                term = null;
+            }
         };
-    }, [isLoggedIn, current?.wsUrl, current?.cid, token, dispatch]);
+    }, [current?.wsUrl]);
 
-    useEffect(() => {
-        if (current?.cid && token) {
-            dispatch(initializeProject({ cid: current.cid, token }));
-        }
-    }, [current?.cid, token, dispatch]);
-
-    useEffect(() => {
-        if (activeFileId) {
-            localStorage.setItem("lastOpenFileId", activeFileId);
-        }
-    }, [activeFileId]);
-
+    // Rest of the component...
+    const { tree, fileMap } = useSelector((state) => state.project);
+    const activeFileId = useSelector((state) => state.openPage.current);
+    
     const handleSave = async () => {
         if (!current?.cid) {
             alert("컨테이너 정보를 찾을 수 없습니다.");
@@ -229,6 +209,7 @@ export default function IdePage() {
                 setMode={setMode}
                 onRun={(u) => { setGuiVisible(true); setUrl(u); }}
                 onSave={handleSave}
+                currentCid={current?.cid}
             />
             <div className="flex flex-1 overflow-hidden">
                 <div className="w-64 shrink-0">
@@ -237,14 +218,14 @@ export default function IdePage() {
 
                 <div className="w-1 bg-[#333]" />
                 <div className="flex-1 flex flex-col min-h-0">
-                    {Object.keys(fileMap).length > 1 ? (
+                    {isLoaded && Object.keys(fileMap).length > 1 ? (
                         <>
                             <FileTabs />
                             <Editor />
                         </>
                     ) : (
                         <div className="flex-1 flex items-center justify-center bg-[#1E1E1E] text-gray-500">
-                            <p>프로젝트가 비어있습니다.</p>
+                            <p>{isLoaded ? "프로젝트가 비어있습니다." : "프로젝트 로딩 중..."}</p>
                         </div>
                     )}
                     <div className="h-1 bg-[#333] cursor-row-resize" onMouseDown={() => setIsResizing(true)} />
